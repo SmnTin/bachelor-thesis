@@ -7,6 +7,7 @@
 *.log
 *.out
 *.synctex.gz
+*.synctex(busy)
 *.run.xml
 *.toc
 *.pdf
