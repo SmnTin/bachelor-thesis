@@ -4,6 +4,7 @@
 \usepackage[backend=bibtex]{biblatex}
 \usepackage{tikz}
 \usepackage{import}
+% \usepackage[table]{xcolor}
 \addbibresource{thesis.bib}
 
 \begin{document}
@@ -64,29 +65,116 @@ To address these challenges, we propose a formal approach to standardizing GQL a
 
 \section{Related work}
 
-There have been some attempts to mathematically formalize the standard~\cite{GQL-formalized-on-paper}, these attempts are still pen-and-paper and, as a result, are prone to errors. In fact, we have identified some errors in the aforementioned paper.
+There have been some attempts to mathematically formalize the standard~\cite{GQL-formalized-on-paper} which we used as a reference, however, these attempts are still pen-and-paper and, as a result, are prone to errors. In fact, we have identified some errors in the aforementioned paper.
 
-However, there has been a successful attempt to formalize a subset of the SQL standard~\cite{sql-in-coq} and even write a verified relational database in Coq~\cite{rdbms-in-coq}. Their experience has shown that though many challenges remain, building fully-verified systems software in Coq is within reach.
+In contrast, there has been a successful attempt to formalize a subset of the SQL standard~\cite{sql-in-coq} and even write a verified relational database in Coq~\cite{rdbms-in-coq}. Their experience has shown that though many challenges remain, building fully-verified systems software in Coq is within reach.
 
 \section{GQL and graph databases in a nutshell}
 
+In this section we describe the basics of GQL and graph databases. For formal definitions we refer the reader to the paper about mathematical formalization of GQL~\cite{GQL-formalized-on-paper}. We assume some familiarity with SQL and relational databases.
+
 \subsection{Property Graphs}
 
-These databases use so-called property graphs as an underlying data model.
-A property graph is a directed multigraph where each node or edge could
-store a set of property-value pairs. In addition, labels can be added to nodes and edges to indicate their meaning.
+Graph databases use so-called property graphs as an underlying data model. \textbf{A property graph} is a directed multigraph where each node~\footnote{In the rest of the text we use words ``node'' and ``vertex'' interchangeably} or edge can store a possibly empty set of property-value pairs. To distinguish nodes and edges, each node and edge has a unique identifier\footnote{Even though any two vertex identifiers must differ, as well as any two edge identifiers. Sets of vertex and edge identifiers can overlap. They are considered to belong to different namespaces.}. In addition, labels can be added to nodes and edges to indicate their meaning.
 
 \begin{figure}[b]
   \centering
   
   \import{img/}{property-graph.tex}
 
-  % \includegraphics{img/fig1.jpg}
   \caption{Example property graph}
   \label{fig:property-graph}
 \end{figure}
 
-For instance, on figure~\ref{fig:property-graph} there are two nodes with labels ``Person'' and ``Company'', respectively. The company has a property ``name'' with a value of ``JetBrains'', and there is an edge from the person to the company labeled ``WORKS\_FOR''. This edge also has a property ``since'' with a value of ``2022''.
+For instance, in figure~\ref{fig:property-graph} there are two nodes labelled ``Person'' and ``Company'' with identifiers 0 and 1, respectively. The company has a property ``name'' with a value of ``JetBrains'', and there is an edge from the person to the company labelled ``WORKS\_FOR'' with id of 0. This edge also has a property ``since'' with a value of ``2022''.
+
+\subsection{Values}
+
+In the subset of GQL we are interested in there are the following types of values:
+\begin{itemize}
+  \item \textbf{Graph object types.} Values of these types are vertex and edge identifiers.
+  \item \textbf{Base types.} Values of these types are floating point numbers, integers and strings. 
+  \item \textbf{Boolean type.} Values of this type are either \texttt{true}, \texttt{false} or \texttt{unknown}.
+\end{itemize}
+
+Values of all of these types can be used in properties of graph objects.
+
+\subsection{Binding tables}
+
+The result of a GQL query is represented with a so-called binding table which is analogous to the relation from SQL. Binding tables are also used to represent the intermidiate results during the query evaluation.
+
+Basically, \textbf{a binding table} is a list of records. Each \textbf{record} is a set of key-value pairs~\footnote{In the rest of the text we use words ``name'' and ``key'' interchangeably}. \textbf{The domain of a record} is a set of all used names. \textbf{The type of a record}  is a set of pairs of names and types of values under these names. A particular name-type pair is called \textbf{an attribute}. All the records in a table must have the same type, i.e. their domains must be the same and types of values under the same name must also match.
+
+Because of the fact that all the records in any table have the same type, we can define \textbf{the type of a table} as the type of any of its records. An attribute of a record is also an attribute of the table.
+
+\begin{figure}
+  \centering
+  
+  \begin{tabular}{ |p{3cm}|p{3cm}|p{3cm}|  }
+    \hline
+    \texttt{v : vertex} & \texttt{e : edge} & \texttt{u : vertex} \\
+    \hline
+    0 & 0 & 1 \\
+    2 & 1 & 1 \\
+    \hline
+  \end{tabular}
+
+  \caption{Example binding table}
+  \label{fig:example-binding-table}
+\end{figure}
+
+For example, in Figure~\ref{fig:example-binding-table} there is a table with two records. There are three attributes: \texttt{v : vertex}, \texttt{e : edge} and \texttt{u : vertex}. 
+
+
+\subsection{GQL queries syntax and semantics}
+
+GQL queries consist of clauses, keywords and expressions like predicates and functions, many of which will be familiar to the users of SQL.
+
+
+The following example query consists of three clauses:
+\begin{verbatim}
+MATCH (p:Person)-[e:WORKS_FOR]->(c:Company {"name": "JetBrains"})
+WHERE e.since >= 2020
+RETURN *
+\end{verbatim}
+
+The first one is the \texttt{MATCH}-clause which allows to specify \textbf{a path pattern}. The result of this query is a table where entries represent all the paths that match the pattern. The second clause is the \texttt{WHERE}-clause which allows to filter the records based on some predicate. And the last clause just says that we want to retrieve everything.
+
+Let's dive deeply into the syntax of path patterns:
+\begin{verbatim}
+(p:Person)-[e:WORKS_FOR]->(c:Company {"name": "JetBrains"})
+\end{verbatim}
+
+Here \verb+(p:Person)+ and \verb+(c:Company {"name": "JetBrains"})+ are \textbf{vertex patterns} while \verb+-[e:WORKS_FOR]->+ is \textbf{an edge pattern}. \texttt{p}, \texttt{e}, \texttt{c} are vertex and edge pattern names. They are used to refer to the corresponding graph objects in the rest of the query. \texttt{Person} and \texttt{Company} are vertex labels. \texttt{WORKS\_FOR} is an edge label. \texttt{"name": "JetBrains"} is \textbf{a property pattern}. It says that the company must have a property ``name'' with a value of ``JetBrains''.
+
+\begin{figure}[b]
+  \centering
+  
+  \begin{tabular}{ |p{3cm}|p{3cm}|p{3cm}|  }
+    \hline
+    \texttt{p : vertex} & \texttt{e : edge} & \texttt{c : vertex} \\
+    \hline
+    0 & 0 & 1 \\
+    \hline
+  \end{tabular}
+
+  \caption{The result of the example query}
+  \label{fig:example-query-binding-table}
+\end{figure}
+
+Names of edge patterns are distinct and must differ from names of vertex patterns. However, names of vertex patterns can repeat. This can be used, for example, to look for cycles.
+
+Names, labels and property patterns are optional. If a name is not specified, the matching graph objects are not listed in the result. For example, \texttt{()} is a completely valid vertex pattern.
+
+The syntax \texttt{-[]->} says that the edge is directed from left to right, from the person to the company. We can also use \texttt{<-[]-} to match the edges in the reversed direction. And \texttt{-[]-} to say that the direction of the edge does not matter.
+
+In the \texttt{WHERE}-clause the predicate \verb+e.since >= 2020+ says that the edge must have a property ``since'' with an integer value greater than or equal to 2020.
+
+If we run the example query on the example graph from Figure~\ref{fig:property-graph}, we will get the binding table on Figure~\ref{fig:example-query-binding-table}.
+
+\subsection{Execution plans}
+
+\section{Goals and objectives}
 
 % % Рисунок, размещенный с предпочтением "вверху страницы"
 % \begin{figure}[t]
@@ -97,8 +185,7 @@ For instance, on figure~\ref{fig:property-graph} there are two nodes with labels
 % \end{figure}
 
 % У заключения нет номера главы
-\section*{Conclusion}
-\lipsum[1-2]
+\section*{Conclusion and future work}
 
 \setmonofont[Mapping=tex-text]{CMU Typewriter Text}
 % \bibliographystyle{plain}
