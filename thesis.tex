@@ -162,7 +162,7 @@ Here \verb+(p:Person)+ and \verb+(c:Company {"name": "JetBrains"})+ are \textbf{
   \label{fig:example-query-binding-table}
 \end{figure}
 
-Names of edge patterns are distinct and must differ from names of vertex patterns. However, names of vertex patterns can repeat. This can be used, for example, to look for cycles.
+Names of edge patterns are distinct and must differ from names of vertex patterns. However, names of vertex patterns can repeat. This can be used, for example, to look for cycles in the graph.
 
 Names, labels and property patterns are optional. If a name is not specified, the matching graph objects are not listed in the result. For example, \texttt{()} is a completely valid vertex pattern.
 
@@ -173,6 +173,47 @@ In the \texttt{WHERE}-clause the predicate \verb+e.since >= 2020+ says that the 
 If we run the example query on the example graph from Figure~\ref{fig:property-graph}, we will get the binding table on Figure~\ref{fig:example-query-binding-table}.
 
 \subsection{Execution plans}
+
+As you could see, GQL is a declarative language, meaning queries only describe what data is required, and the database has to figure out how to fetch it.
+
+Like relational databases, graph databases translate a query into an intermediate representation called \textbf{an execution plan}, which is just a sequence of operations that need to be performed in order to evaluate the query. These operations inspect the graph and produce intermediate binding tables that are later transformed by subsequent operations.
+
+Moreover, the optimization step of the query evaluation is usually performed on the execution plan of the query.
+
+\begin{figure}[t]
+  \centering
+  
+  \begin{tabular}{ |c|l|  }
+    \hline
+    \multicolumn{2}{|c|}{Neo4j} \\
+    \hline
+    Name & \multicolumn{1}{c|}{Description} \\
+    \hline
+    \texttt{Expand(All)} & Traverses all edges from a given node. \\
+    \texttt{Expand(Into)} & Traverses all edges between two nodes. \\
+    \texttt{AllNodesScan} & Scans all nodes in the graph. \\
+    \texttt{Filter} & Filters out rows that do not satisfy a given predicate. \\
+    \texttt{ProduceResults} & Cleans up auxillary information. \\
+    \hline
+  \end{tabular}
+  \begin{tabular}{ |c|l|  }
+    \hline
+    \multicolumn{2}{|c|}{RedisGraph} \\
+    \hline
+    Name & \multicolumn{1}{c|}{Description} \\
+    \hline
+    \texttt{Traverse} & Traverses paths that match the given pattern slice. \\
+    \texttt{ScanNodes} & Scans all nodes in the graph. \\
+    \texttt{Filter} & Filters out rows that do not satisfy a given predicate. \\
+    \texttt{ReturnAll} & Cleans up auxillary information. \\
+    \hline
+  \end{tabular}
+
+  \caption{The most important execution plan operations for Neo4j and RedisGraph}
+  \label{fig:execution-plan-operations-summary}
+\end{figure}
+
+Neo4j and RedisGraph use different sets of operations to evaluate queries. However, the general idea is the same. The tables in Figure~\ref{fig:execution-plan-operations-summary} show the most important operations for both databases.
 
 \section{Goals and objectives}
 
