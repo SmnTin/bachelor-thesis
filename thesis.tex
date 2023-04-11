@@ -118,7 +118,7 @@ In this section we describe the basics of GQL and graph databases. For formal de
 \subsection{Property Graphs}
 \label{section:intro-property-graphs}
 
-Graph databases use so-called property graphs as an underlying data model. \textbf{A property graph} is a directed multigraph where each node\footnote{In the rest of the text we use words ``node'' and ``vertex'' interchangeably} or edge can store a possibly empty set of property-value pairs. To distinguish nodes and edges, each node and edge has a unique identifier\footnote{Even though any two vertex identifiers must differ, as well as any two edge identifiers. Sets of vertex and edge identifiers can overlap. They are considered to belong to different namespaces.}. In addition, labels can be added to nodes and edges to indicate their meaning.
+Graph databases use so-called property graphs as an underlying data model. \textbf{A property graph} is a directed multigraph where each node\footnote{In the rest of the text we use words ``node'' and ``vertex'' interchangeably} or edge can store a possibly empty set of property-value pairs. To distinguish nodes and edges, each node and edge has a unique identifier\footnote{Even though any two vertex identifiers must differ as well as any two edge identifiers, sets of vertex and edge identifiers can overlap. They are considered to belong to different namespaces.}. In addition, labels can be added to nodes and edges to indicate their meaning.
 
 \begin{figure}[b]
   \centering
@@ -356,6 +356,38 @@ We start with the formal definition of property graphs. In short, a property gra
   \end{itemize}
 \end{definition}
 
+For instance, the example graph on Figure~\ref{fig:property-graph} is represented as follows:
+
+\begin{equation*}
+  \begin{aligned}[t]
+    V &= \{0, 1, 2 \} \\
+    E &= \{0, 1, 2 \} \\
+    \eta: & \\
+          & 0 \mapsto (0, 1) \\
+          & 1 \mapsto (0, 2) \\
+          & 2 \mapsto (1, 2) \\
+    \lambda_V: & \\
+          & 0 \mapsto \{\texttt{Person}\} \\
+          & 1 \mapsto \{\texttt{Company}\} \\
+          & 2 \mapsto \{\texttt{Tech}\} \\
+  \end{aligned}
+  \qquad
+  \begin{aligned}[t]
+    \lambda_E: & \\
+          & 0 \mapsto \texttt{WORKS\_FOR} \\
+          & 1 \mapsto \texttt{LIKES} \\
+          & 2 \mapsto \texttt{USES} \\
+    \phi_V: & \\
+          & 0 \mapsto \varnothing \\
+          & 1 \mapsto \{(\texttt{``name''}, \, \texttt{``JB''})\} \\
+          & 2 \mapsto \{(\texttt{``name''}, \, \texttt{``Coq''})\} \\
+    \phi_E: & \\
+          & 0 \mapsto \{(\texttt{``since''}, \, \texttt{2022})\} \\
+          & 1 \mapsto  \varnothing \\
+          & 2 \mapsto \varnothing
+  \end{aligned}
+\end{equation*}
+
 \subsubsection{Binding tables}
 
 \begin{definition}
@@ -517,6 +549,13 @@ To transfer the records between the matching modes we can define the notion of e
 
 \begin{definition}
   \textbf{The explicit projection of a record} $r$, denoted by $r |_E$, is a record that contains only the explicit names from $r$. In other words, we narrow the domain of $r$ to explicit names only.
+
+  Formally:
+  $$ r|_E(n) :=
+    \begin{cases}
+      r(n) & \text{if $n$ is explicit} \\
+      \text{undefined} & \text{otherwise}
+    \end{cases} $$
 \end{definition}
 
 \begin{theorem}
@@ -638,7 +677,6 @@ We can also show that resulting binding table has the desired type:
 \end{proof}
 
 \subsection{The specification of the execution plan}
-
 
 
 \subsection{The translation from queries to execution plans}
