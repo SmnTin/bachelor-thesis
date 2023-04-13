@@ -487,14 +487,14 @@ We postponed the discussion of names until now because we needed to introduce th
 Therefore, graph databases perform \textit{pattern normalization} before the actual query evaluation. This means that they add names to all vertex and edge patterns if they are missing. The names are generated automatically and are not visible to the user.
 
 \begin{definition}
-  To model that behaviour we define \textbf{a name} to be a string about which we know whether it is \textit{explicit} or \textit{implicit}. An explicit name is a name that is explicitly specified by the user. An implicit name is a name that is generated automatically by the database during the normalization process.
+  To model that behaviour we define \textbf{a name} to be a string about which we know whether it is \textit{explicit} or \textit{implicit}. An explicit name is a name that was explicitly specified by the user. An implicit name is a name that was generated automatically by the database during the normalization process.
 \end{definition}
 
-This way, even though, the names can be omitted in the query, they are always present in the normalized query. So we can require that \textit{all} vertex and edge patterns have names in our specification, even though, some of them might be implicit.
+This way, even though, the names can be omitted in the original query, they are always present in the normalized query. So we can require that \textit{all} vertex and edge patterns have names in our specification, even though, some of them might be implicit.
 
 \subsubsection{The pattern-matching predicate and matching modes}
 
-Let's fix the property graph $G$ on which we operate. We can now informally define the pattern-matching predicate $\mathcal{M}$ as follows:
+Let's fix the property graph $G$ on which we operate. We can now informally define the pattern-matching predicate as follows:
 
 \begin{definition}
    A path $p$ with a record $r$ \textbf{matches} a pattern $\pi$ if and only if: $p$ matches $\pi$ and $r$ represents $p$. This is denoted as $\pi \models (p, r)$.
@@ -506,7 +506,7 @@ Informally defining what it means for a path to match a pattern is easy: the str
 
 Representing paths with records is pretty easy too: an edge or a vertex of the path must appear in the record with the name specified in the corresponding vertex or edge pattern.
 
-However, the path structure contains the full information about the path in the graph while in the resulting table we might not need all of it. For example, if the name in the original query was omitted (i. e. the name is implicit after normalization), the corresponding column in the resulting table should not appear. This is why we introduce the notion of the matching mode. It controls which names should appear in records.
+However, the path structure contains the full information about the path in the graph while in the resulting table we might not need all of it. For example, if the name in the original query was omitted (i. e. the name appeared after normalization and, thus, is implicit), the corresponding column in the resulting table should not appear. This is why we introduce the notion of the matching mode. It controls which names should appear in records.
 
 \begin{definition}
   We have three \textbf{matching modes}:
@@ -678,10 +678,364 @@ We can also show that resulting binding table has the desired type:
 
 \subsection{The specification of the execution plan}
 
+In this section we describe which operation we have chosen for our purposes and how we have specified them.
+
+\subsubsection{The operations}
+
+We have distilled five operations from Neo4j and RedisGraph implementations that are enough to evaluate the queries. All of these operations produce a table but some of them also take a table as input. In other table, some operation produce tables to start with while other operations take and transform these tables. The execution plan is organized into a sequence of these transformations.
+
+\begin{definition}[the execution plan operations] $ $
+  % \textbf{The execution plan operations} are the following:
+  % TODO: Add a use case for each operation. 
+  \begin{itemize}
+    \item \textbf{\texttt{ScanVertices}}. This is the operation from which the evaluation of any query begins. It retrieves all the vertices from the graph and returns a table with a single column containing all the vertices. This operation takes one parameter which is \textit{the name of the column}. 
+
+    \item \textbf{\texttt{FilterByLabel}}. This is the operation which is used to implement matching the label patterns in path patterns.
+    It filters the input table by a label. The record will make into the output table iff the corresponding graph object (a vertex or an edge) has the label. This operation takes three parameters: \textit{the name of the column} to source graph objects, \textit{the label} to filter by and \textit{the filtering mode} which specifies whether we filter vertices or edges.
+
+    \item \textbf{\texttt{Expand}}. This operation is the workhorse of Neo4j's query evaluation. Briefly, it traverses one edge from each given node. More concretely, this operation performes in two modes:
+    \begin{itemize}
+      \item \textbf{\texttt{All}}.
+      The operation takes each record from the input table, takes the source node from the record and for each edge going in the specified direction from the node adds to the output table a record which is extended from the original record by appending the destination node and the traversed edge. The user is required to specify the name of the column containing the source nodes, the name of the column that will contain the edges and the name of the column that will contain the destination nodes.
+
+      Recall the example graph on Figure~\ref{fig:property-graph}. If we have a table with a single column and a single record containing the node 0 then the application of the \texttt{Expand} operation with the \texttt{All} mode will act as follows:
+
+      \begin{center}
+        \begin{tabular}{|c|}
+          \hline
+          \texttt{n\_from} \\
+          \texttt{: vertex} \\
+          \hline
+          0 \\
+          \hline
+        \end{tabular}
+        \quad
+        \scalebox{1.3}{$\xrightarrow[\texttt{All}]{\texttt{Expand}}$}
+        \quad
+        \begin{tabular}{|c|c|c|}
+          \hline
+          \texttt{n\_from} & \texttt{n\_edge} & \texttt{n\_to} \\
+          \texttt{: vertex} & \texttt{: edge} & \texttt{: vertex} \\
+          \hline
+          0 & 0 & 1 \\
+          0 & 1 & 2 \\
+          \hline
+        \end{tabular}
+      \end{center}
+
+      \item \textbf{\texttt{Into}}.
+      This mode is very similar to the previous one but in this case the records in the input table must already contain the destination modes. The operation then traverse all the edges between the source and destination nodes and adds the traversed edges to the output table.
+
+      Recall the example graph on Figure~\ref{fig:property-graph} again.
+      An example application of the \texttt{Expand} operation in the mode \texttt{Into} can act as follows (the types of columns are omitted for brevity):
+      \begin{center}
+        \begin{tabular}{|c|c|}
+          \hline
+          \texttt{n\_from} & \texttt{n\_to} \\
+          \hline
+          0 & 1 \\
+          0 & 2 \\
+          \hline
+        \end{tabular}
+        \quad
+        \scalebox{1.3}{$\xrightarrow[\texttt{Into}]{\texttt{Expand}}$}
+        \quad
+        \begin{tabular}{|c|c|c|}
+          \hline
+          \texttt{n\_from} & \texttt{n\_edge} & \texttt{n\_to} \\
+          \hline
+          0 & 0 & 1 \\
+          0 & 1 & 2 \\
+          \hline
+        \end{tabular}
+      \end{center}
+    \end{itemize}
+    The mode is also specified by the user.
+
+    \item \textbf{\texttt{Traverse}}. This operation is the workhorse of RedisGraph's query evaluation. From the high-level perspective you can think of it as a generalization of the \texttt{Expand} operation. Instead of specifying a single edge to traverse the user provides a slice of a path pattern. The precise meaning of this term will be given later. The operation takes a table as input and for each record in the input table it traverses from the source node all the paths that satisfy the pattern slice.
+    
+    Why would we even have such operation when we can express it with other operations? The reason is that this operation is heavily optimized using linear algebra. Other operations are quite atomic so you can't really optimize them that much.
+
+    \item \textbf{\texttt{ReturnAll}}. This operation is used to clean up the results. For now, it just applies the explicit projection to the output table to clean up the implicit names introduced after query normalization.
+    
+  \end{itemize}
+\end{definition}
+
+\subsubsection*{The specification}
+
+We specified the execution plan operations in a similar way to the specification of the query language.
+
+\begin{definition}
+  To specify the operations we introduce \textbf{the operation evaluation function} defined for each operation as follows:
+  \begin{itemize}
+    \item $ [\texttt{ScanVertices}(n)]_G = t'$ where $t'$ is the result of the $\texttt{ScanVertices}$ operation on the graph $G$ with the name of the output column $n$.
+    \item $ [\texttt{FilterByLabel}(m, n, l)]_G (t) = t' $ where $t'$ is the result of the \\ $\texttt{FilterByLabel}$ operation in the mode $m$ on the graph $G$ and the table $t$ with the name of the filtered column $n$ and the label $l$. 
+    
+    If we know the exact mode we can write it as:
+    \begin{itemize}
+      \item $[\texttt{FilterVerticesByLabel}(n, l)]_G$
+      \item $[\texttt{FilterEdgesByLabel}(n, l)]_G$
+    \end{itemize}
+
+    \item $ [\texttt{Expand}(m, d, n_{\mathrm{from}}, n_{\mathrm{edge}}, n_{\mathrm{to}})]_G (t) = t' $ where $t'$ is the result of the $\texttt{Expand}$ operation in the mode $m$ on the graph $G$ and the table $t$ with the direction of edges, the names of the columns containing the source nodes, the traversed edges and the destination nodes respectively.
+    
+    If we know the exact mode we can write it as:
+    \begin{itemize}
+      \item $[\texttt{ExpandAll}(n_{\mathrm{from}}, n_{\mathrm{edge}}, n_{\mathrm{to}}, d)]_G$
+      \item $[\texttt{ExpandInto}(n_{\mathrm{from}}, n_{\mathrm{edge}}, n_{\mathrm{to}}, d)]_G$
+    \end{itemize}
+
+    \item In the same fashion we define $[\texttt{Traverse}(n_{\mathrm{from}}, \pi)]_G(t) = t'$ where $\pi$ is the path pattern slice.
+    
+    \item Finally, $[\texttt{ReturnAll}]_G(t) = t'$ where the tables are defined the same way as in the previous cases.
+  \end{itemize}
+\end{definition}
+
+Note that the operations may fail if the inputs are not well-formed. Formally, it means that the resulting table $t'$ may not be defined.
+
+As in the case with the query language itself, the specification of the execution plan operations is actually the specification of the operation evaluation functions. Structurally, the specification is a set of axioms which the operation evaluation function must satisfy.
+
+We have a set of axioms for each operations which can be split into the following categories:
+\begin{itemize}
+  \item \textbf{Well-formedness axiom} which says that if the inputs are well-formed then the evaluation of the operation succeeds, i. e. the output table is defined. What is means for the inputs to be well-formed is specified for each operation individually.
+  \item \textbf{Type axiom} which says that if the input table has a type and the output table is defined then the output table has a type which is well-defined in terms of its parameters and the type of the input table.
+  \item \textbf{Functional axioms} which specify the behaviour of the operation. For example, the \texttt{ReturnAll} operation must return the explicit projection of the input table.
+
+\end{itemize}
+
+Let's take as an example the \texttt{ScanVertices} operation. It has the following specification:
+\begin{itemize}
+  \item \textbf{Well-formedness axiom}. This operation doesn't have any well-formedness requirements so it must always be defined. Formally:
+  $$ [\texttt{ReturnAll}(n)]_G \text{ is always defined} $$
+  \item \textbf{Type axiom}. The output table must have a single column named $n$ which contains vertices. Formally:
+  $$ \text{if } \; [\texttt{ReturnAll}(n)]_G = t' \; \text{ then } \; t' : (n \mapsto \texttt{vertex}) $$
+  \item \textbf{Functional axiom}. The output table must contain all the vertices in the graph and only them. Formally:
+  \begin{center}
+    if $[\texttt{ReturnAll}(n)]_G = t'$ then $t' = \{(n \mapsto v) \mid v \in V\}$
+  \end{center}
+\end{itemize}
+
+The specification of the \texttt{ScanVertices} operation is not very interesing. Partly because the type axiom can be deduced from the functional axiom.
+
+The more involved example is the \texttt{FilterByLabel} operation. It has the following specification:
+\begin{itemize}
+  \item \textbf{Well-formedness axioms}. The input table must have a single column named $n$ which contains vertices or edges according to the mode. Formally, we can use types to describe that:
+  \begin{itemize}
+    \item if $t : T$ and $T(n) = \texttt{vertex}$ \\
+    then $[\texttt{FilterVerticesByLabel}(n, l)]_G(t)$ is defined 
+    \item if $t : T$ and $T(n) = \texttt{edge}$ \\
+    then $[\texttt{FilterEdgesByLabel}(n, l)]_G(t)$ is defined 
+  \end{itemize}
+
+  \item \textbf{Type axiom}. The output table must have the same type as the input table which makes sense because filtering operation shold only remove records but restructure them. Formally:
+  \begin{center}
+    if $t : T$ and $[\texttt{FilterByLabel}(m, n, l)]_G(t) = t'$
+    then $t' : T$
+  \end{center}
+
+  You can see now why we defined the typing relation for binding tables the way that allows an empty table to have any type. This way if the operation filters out all the records from the input table, the output table still has the same type. This even works if the input table is empty too.
+
+  \item \textbf{Functional axioms}. The output table must contain all the records from the input table in which the graph object in the specified column has the label $l$ and only them. Formally:
+  \begin{itemize}
+    \item if $[\texttt{FilterVerticesByLabel}(n, l)]_G(t) = t'$ \\
+    then $t' = \{ r \in t \mid \exists v \in V : r(n) = v \text{ and } l \in \lambda_V(v) \}$
+    \item if $[\texttt{FilterEdgesByLabel}(n, l)]_G(t) = t'$ \\
+    then $t' = \{ r \in t \mid \exists e \in E : r(n) = e \text{ and } l = \lambda_E(e) \}$
+  \end{itemize}
+\end{itemize}
+
+The last example to consider is the \texttt{Expand} operation. It has the following specification:
+\begin{itemize}
+  \item \textbf{Well-formedness axioms}. The input table must have a column named $n_{\mathrm{from}}$ which contains vertices and, depending on the mode, a column $n_{\mathrm{to}}$ which also contains vertices. Formally:
+  \begin{itemize}
+    \item if $t : T$ and $T(n_{\mathrm{from}}) = \texttt{vertex}$ while $T(n_{\mathrm{edge}})$ and $T(n_{\mathrm{to}})$ are not defined
+    then $[\texttt{ExpandAll}(n_{\mathrm{from}}, n_{\mathrm{edge}}, n_{\mathrm{to}}, d)]_G(t)$ is defined
+    \item if $t : T$ and $T(n_{\mathrm{from}}) = T(n_{\mathrm{to}}) = \texttt{vertex}$ while $T(n_{\mathrm{edge}})$ is not defined
+    then $[\texttt{ExpandInto}(n_{\mathrm{from}}, n_{\mathrm{edge}}, n_{\mathrm{to}}, d)]_G(t)$ is defined
+  \end{itemize}
+
+  \item \textbf{Type axiom}. Because this operation just adds new attributes to the input table, the type of the output table can described easily:
+  \begin{center}
+    if $t : T$ and $[\texttt{Expand}(m, n_{\mathrm{from}}, n_{\mathrm{edge}}, n_{\mathrm{to}}, d)]_G(t) = t'$ \\
+    then $t' : (n_{\mathrm{to}} \mapsto \texttt{vertex}; \, n_{\mathrm{edge}} \mapsto \texttt{edge}; \, T)$
+  \end{center}
+
+  Note that we don't separate the axioms for the $\texttt{All}$ and $\texttt{Into}$ modes because if the attribute $(n_{\mathrm{to}}, \texttt{vertex})$ is already in $T$ it will be just overwritten.
+
+  \item \textbf{Functional axioms}. We won't repeat how this operation works and just leave the formal variant:
+  \begin{itemize}
+    \item if $[\texttt{ExpandAll}(n_{\mathrm{from}}, n_{\mathrm{edge}}, n_{\mathrm{to}}, d)]_G(t) = t'$ then 
+    \begin{align*}
+      t' = \{ & (n_{\mathrm{to}} \mapsto v'; n_{\mathrm{edge}} \mapsto e; r) \mid r \in t \text{ and } \exists v, v' \in V, e \in E : \\
+      & r(n_{\mathrm{from}}) = v \text{ and $(v, v')$ are ends of $e$ according to $d$} \}
+    \end{align*}
+    \item if $[\texttt{ExpandInto}(n_{\mathrm{from}}, n_{\mathrm{edge}}, n_{\mathrm{to}}, d)]_G(t) = t'$ then
+    \begin{align*}
+      t' = \{ & (n_{\mathrm{edge}} \mapsto e; r) \mid r \in t \text{ and } \exists v, v' \in V, e \in E : r(n_{\mathrm{from}}) = v, \\
+      & r(n_{\mathrm{to}}) = v' \text{ and $(v, v')$ are ends of $e$ according to $d$ } \}
+    \end{align*}
+  \end{itemize}
+\end{itemize}
+
+\subsubsection{Execution plans}
+
+\begin{figure}
+  \centering
+  \include{img/execution-plan.tex}
+  \caption{An example execution plan}
+  \label{fig:example-execution-plan}
+\end{figure}
+
+\begin{definition}
+  \textbf{An execution plan} is a finite sequence of operations and is formally defined as a tree with operations in the nodes For example consider Figure~\ref{fig:example-execution-plan}. The direction of arrows shows the order of operations and the flow of intermidiate tables.
+
+  The node of an operation in the plan may or may not have a child depending on whether the operation takes an input table or not. The operation nodes that do not have children are called \textbf{leaf operations}. For now, we have only one leaf operation which is \texttt{ScanVertices}.
+\end{definition}
+
+\begin{definition}
+  Using the operation evaluation function from the previous section, we can define \textbf{the execution plan evaluation function} $[\cdot]_G$ as follows:
+  \begin{itemize}
+    \item If the root node of a plan is a leaf operation then the evaluation function is just the evaluation function of the operation.
+    \item If the root node of a plan is not a leaf operation then the evaluation function first evaluates the subplan of the child node and then feeds the resulting table to the evaluation function of the operation.
+
+    For example, if the root node of the plan $p$ is $\texttt{ReturnAll}$ and the subplan is $p'$ then:
+    $$ [p]_G = [\texttt{ReturnAll}]_G ([p']_G) $$
+  \end{itemize}
+\end{definition}
+
+Note that this evaluation function is partial because the operation evalution function, used internally, is partial too. Generally, it means that the plan is ill-formed and doesn't really make a lot of sense.
+
+\begin{definition}
+  In the same way we defined the evaluation of execution plans, we can define \textbf{the type of an execution plan}. It is defined recursively on the structure of the plan and on each step we transform the type of the subplan the way described in the type axiom for the root operation.
+  
+  For example, if the root node of the plan $p$ is $\texttt{ReturnAll}$ and the subplan is $p'$ then:
+    $$ T(p) = T(p') \mid_E $$
+\end{definition}
+
+We may now state an important connection between the type of a plan and the type of the resulting table. Unsurprisingly, they turn out to be equal.
+
+\begin{theorem}
+  If $p$ is a plan and $[p]_G$ is defined then $T(p) = T([p]_G)$.
+\end{theorem}
+\begin{proof}
+  By straightforward induction on the structure of the plan and the type axioms for the operations.
+\end{proof}
+
+This theorem means that we can easily find out the type of the resulting table without the need to evaluate the plan.
+
+\begin{definition}
+  In a similar manner, we define \textbf{the well-formedness of a plan}. A plan is well-formed if the inputs to each operation satisfy the well-formedness conditions described in the operation definition but instead of using the type of the input table we use the type of the subplan, we have just defined.
+\end{definition}
+
+\begin{theorem}
+  If $p$ is a well-formed plan then $[p]_G$ is defined.
+\end{theorem}
+\begin{proof}
+  By straightforward induction on the structure of the plan and the well-formedness axioms for the operations.
+\end{proof}
+
+With this theorem we can easily show that the evaluation of a particular plan succeeds by simply looking at its structure.
 
 \subsection{The translation from queries to execution plans}
 
-\subsection{The implementation of the execution plan evaluation}
+In this section we describe the translation algorithms from queries to execution plans that Neo4j and RedisGraph use to evaluate the queries.
+
+\subsubsection{Neo4j}
+
+The idea of this translation algorithm is to translate each edge pattern in a path pattern into the \texttt{Expand} operation, possibly adding instances of \texttt{FilterByLabel} to account for the labels in the vertex and edge patterns.
+
+\begin{figure}
+  \include{img/neo4j-execution-plan.tex}
+  \caption{The Neo4j execution plan for the example path pattern}
+  \label{fig:neo4j-execution-plan}
+\end{figure}
+
+For example, we have the following path pattern:
+\begin{verbatim}
+  (u:User)-[:LIKES]->(v:Art)<-[:CREATED]-(w:Artist)
+\end{verbatim}
+Suppose that after normalization the first edge pattern got the name \texttt{anon\_0} and the second one got the name \texttt{anon\_1}. Then the translation algorithm produces the execution plan on Figure~\ref{fig:neo4j-execution-plan}.
+
+\begin{figure}
+  \include{img/neo4j-execution-plan-cyclic.tex}
+  \caption{The Neo4j execution plan for the example cyclic path pattern}
+  \label{fig:neo4j-execution-plan-cyclic}
+\end{figure}
+
+Is is also worth to consider the case of cyclic path patterns. For example, we have the following path pattern:
+% which specifies directed cycles with two edges:
+\begin{verbatim}
+  (u)-[e0]->(v)-[e1]->(u)
+\end{verbatim}
+To the point where we process the second edge pattern, both \texttt{u} and \texttt{v} are already in the context. That is why we use \texttt{ExpandInto} instead of \texttt{ExpandAll} and get the execution plan on Figure~\ref{fig:neo4j-execution-plan-cyclic}.
+
+\begin{definition}
+  We can now precisely define \textbf{the auxilliary translation algorithm} from path patterns to execution plans. Let's denote the auxilliary plan for a path pattern $\pi$ by $P'(\pi)$. The algorithm is defined as follows:
+  \begin{itemize}
+    \item If the path pattern is of the form $\patternstart{\pi_v}$ where $\pi_v$ is a vertex pattern that has name $n$ and label $l$ then the execution plan for $(\pi_v)$ is \texttt{ScanVertices(n)} followed by \texttt{FilterVerticesByLabel(n, l)}. If $l$ is not specified then the execution plan is just \texttt{ScanVertices(n)}.
+
+    \item If the path pattern is of the form $\patternhop{\pi}{\pi_e}{\pi_v}$ where $\pi$ is a path pattern where the name of the last vertex pattern is $n_u$; $\pi_e$ is an edge pattern that has name $n_e$, direction $d$ and label $l_e$, and $\pi_v$ is a vertex pattern that has name $n_v$ and label $l_v$; then the execution plan for $\patternhop{\pi}{\pi_e}{\pi_v}$ is \texttt{Expand}($m$, $n_u$, $n_e$, $n_v$) followed by \texttt{FilterEdgesByLabel}($n_e$, $l_e$) and \texttt{FilterVerticesByLabel}($n_v$, $l_v$). 
+    If any of the labels is not specified, the corresponding filtering operation is not included. The mode $m$ of the \texttt{Expand} operation is determined based on whether $n_v$ is already present or not. This can be checked by looking at $T_F(\pi)$, the full type of the pattern.
+  \end{itemize} 
+
+  This operation also checks that inputs are well-formed and fails if they are not. In particular, before applying the \texttt{Expand} operation, the algorithm checks that $n_e$ is not already present in the context.
+\end{definition}
+
+\begin{definition}
+  \textbf{The translation algorithm} itself just runs the auxilliary algorithm and appends the \texttt{ReturnAll} operation to the plan.
+  Let's denote the plan for a path pattern $\pi$ by $P(\pi)$.
+\end{definition}
+
+ We can now show lots of important properties using the machinery we developed earlier.
+
+\begin{theorem} If $\pi$ is well-formed then
+  $$T(P'(\pi)) = T_F(\pi)$$
+\end{theorem}
+\begin{proof}
+  By straightforward induction on the structure of the pattern.
+\end{proof}
+
+\begin{theorem} If $\pi$ is well-formed then
+  $$T(P(\pi)) = T_E(\pi)$$
+\end{theorem}
+\begin{proof}
+  $ T(P(\pi)) = T(P'(\pi))|_E = T_F(\pi)|_E = T_E(\pi) $
+\end{proof}
+
+\begin{theorem} If $\pi$ is well-formed then
+  $$[P'(\pi)]_G = \{ r \mid \exists p : \pi \models_F (p, r) \}$$
+\end{theorem}
+\begin{proof}
+  By straightforward induction on the structure of the pattern.
+\end{proof}
+
+\begin{theorem} If $\pi$ is well-formed then
+  $$[P(\pi)]_G = \{ r \mid \exists p : \pi \models_E (p, r) \}$$
+\end{theorem}
+\begin{proof}
+  As we already know, if $\pi \models_F (p, r)$ then $\pi \models_F (p, r|_E)$.
+\end{proof}
+
+\begin{theorem}
+  If $\pi$ is well-formed then $P'(\pi)$ is well-formed.
+\end{theorem}
+\begin{proof}
+  By straightforward induction on the structure of the pattern.
+\end{proof}
+
+\begin{theorem}
+  If $\pi$ is well-formed then $P(\pi)$ is well-formed.
+\end{theorem}
+\begin{proof}
+  \texttt{ReturnAll} doesn't pose any new well-formedness restrictions.
+\end{proof}
+
+Let $q$ be a query and $\pi$ its path pattern. If define the query evaluation function as $[q]_G := [P(\pi)]_G$. We can now show that it satisfies the specification of GQL.
+
+% by the means of \textbf{the translation function} $P(\cdot)$
+
+\subsection{The implementation of the execution plan operations}
+
 
 % % Рисунок, размещенный с предпочтением "вверху страницы"
 % \begin{figure}[t]
@@ -693,6 +1047,10 @@ We can also show that resulting binding table has the desired type:
 
 % У заключения нет номера главы
 \section*{Conclusion and future work}
+
+In summary, we aimed to write the specification of a subset of GQL and execution plans and show the correctness of the query translation for two reference databases, Neo4j and RedisGraph. We have completed all our subgoals.
+
+There are many directions in which this project can go. For example, we can continue by expanding the current subset of GQL or turn our code into an extensible framework to allow easier reasoning about graph query languages and their semantics.
 
 \setmonofont[Mapping=tex-text]{CMU Typewriter Text}
 % \pagenumbering{gobble}

@@ -30,7 +30,7 @@
 
 * Technical meat (4-10 pages)
 
-- Mechanize the specification of the core subset of the GQL standard:
++ Mechanize the specification of the core subset of the GQL standard:
   + Formal definition of values.
   + Formalization of property graphs: "Property graph is ..."
   + Formalization of binding tables: "Records are partial maps from names to values ..."
@@ -39,21 +39,32 @@
   + The pattern well-formedness predicate.
   + The types of names: Explicit, Implicit. The naming modes: Full, Explicit and Mixed. Brief explanation why they are needed with the promise of delving into details later.
   + The pattern-matching predicate and its interaction with naming modes:
-    - Transition between modes, explicit projections ...
+    + Transition between modes, explicit projections ...
   + The specification axioms: wf, type, spec, spec'
 - Mechanize the specification of the execution plan:
   - The operations and their descriptions:
-    - ScanVertices (n : Name.t)
-    - FilterByLabel (mode : FilterMode.t) (n : Name.t) (l : label) (plan : t) 
-    - Expand (mode : ExpandMode.t) (n_from n_edge n_to : Name.t) (d : Pattern.direction) (plan : t)
-    - ReturnAll (plan : t)
-    - Traverse (slice : PatternSlice.t) (n_from : Name.t) (plan : t)
-  - The 3 types of axioms:
-    - WF: "If the inputs are well-formed then the operation will return the result."
-    - Type: "If the operation returned some table then the type of the table is correct."
-    - Specs.
-    Examples: scan_vertices, filter_vertices_by_label, expand_all, traverse.
-  - Types of plans, well-formedness of plans and evaluation theorems.
+    + ScanVertices (n : Name.t)
+    + FilterByLabel (mode : FilterMode.t) (n : Name.t) (l : label) (plan : t) 
+    + Expand (mode : ExpandMode.t) (n_from n_edge n_to : Name.t) (d : Pattern.direction) (plan : t)
+    + Traverse (slice : PatternSlice.t) (n_from : Name.t) (plan : t)
+    + ReturnAll (plan : t)
+  + The 3 types of axioms:
+    + WF: "If the inputs are well-formed then the operation will return the result."
+    + Type: "If the operation returned some table then the type of the table is correct."
+    + Specs.
+    Examples: scan_vertices, filter_vertices_by_label, expand_all.
+  + Types of plans, well-formedness of plans and evaluation theorems.
++ Implement and prove the correctness of Neo4j-like translation of the queries:
+  + How Neo4j translates queries in detail:
+    + How we choose between ExpandAll and ExpandInto
+    + Where filtering operations are inserted
+    + Usage of naming modes and explicit projections
+  + Statements of the main theorems: `eval (translate_pattern pi)` satisfies the GQL specification.
+- Implement and prove the correctness of RedisGraph-like translation of the queries:
+  - How a pattern is split into slices.
+  - Definition of path and pattern slices. How slices reference each other. Well-formedness of slices and pattern-matching on slices. `split` and `append` and their interaction with well-formedness and the main pattern-matching predicate.
+  - Usage of naming modes and explicit projections.
+  - Statements of the main theorems: `eval (translate_pattern pi)` satisfies the GQL specification.
 - Provide an example implementation of the execution plan evaluation:
   - Example implementations of Neo4j operations in **Haskell**: filter_by_label, return_all
   - Translation to matrix expressions for RedisGraph operations:
@@ -62,17 +73,6 @@
       - `spec` and `spec'` for adj_mat, inc_mat...
     - Matrices traversals with respect to name repetitions. Main theorems:
       - `spec` and `spec'` for adj_mat, inc_mat...
-- Implement and prove the correctness of Neo4j-like translation of the queries:
-  - How Neo4j translates queries in detail:
-    - How we choose between ExpandAll and ExpandInto
-    - Where filtering operations are inserted
-    - Usage of naming modes and explicit projections
-  - Statements of the main theorems: `eval (translate_pattern pi)` satisfies the GQL specification.
-- Implement and prove the correctness of RedisGraph-like translation of the queries:
-  - How a pattern is split into slices.
-  - Definition of path and pattern slices. How slices reference each other. Well-formedness of slices and pattern-matching on slices. `split` and `append` and their interaction with well-formedness and the main pattern-matching predicate.
-  - Usage of naming modes and explicit projections.
-  - Statements of the main theorems: `eval (translate_pattern pi)` satisfies the GQL specification.
 
 
 * Conclusion and future work (1 page)
