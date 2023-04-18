@@ -31,19 +31,26 @@
 % \usepackage{graphicx}
 \usepackage{extarrows}
 \usepackage[bottom]{footmisc}
+\usepackage[many]{tcolorbox}
 % \usepackage[table]{xcolor}
 \addbibresource{thesis.bib}
 
 \theoremstyle{definition}
-\newtheorem*{theorem}{Theorem}
-\newtheorem*{lemma}{Lemma}
-\newtheorem*{definition}{Definition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{definition}{Definition}
 
 \newcommand{\pathstart}[1]{(#1)}
 \newcommand{\pathhop}[3]{#1 \texttt{-[} #2 \texttt{]-} (#3)}
 
 \newcommand{\patternstart}[1]{(#1)}
 \newcommand{\patternhop}[3]{#1 \texttt{-[[} #2 \texttt{]]-} (#3)}
+
+\newcommand{\todo}[1]{
+  \begin{tcolorbox}[colframe=red!75!black,colback=red!5!white,arc=0pt,fonttitle=\bfseries]
+  \textbf{TODO:} #1
+  \end{tcolorbox}
+}
 
 % \feetbelowfloat
 
@@ -71,13 +78,23 @@ Databases have come a long way since their inception, and today we have a pletho
 
 As the name suggests, graph databases represent data using graphs. While the idea of representing data with graphs isn't new with solutions developed as early as the mid-1960s, the first enterprise-ready ACID-compliant transactional database only emerged in 2007 with the release of Neo4j~\cite{enwiki:1146498781}. Since then, many graph databases such as Amazone Neptune, RedisGraph and NebulaGraph have sprung up~\cite{enwiki:1146498781}, with successful applications in various fields including recommendation services, fraud detection in finance~\cite{neo4j:use-cases} and even investigations of corruption schemes~\cite{icij:offshoreleaks}.
 
-However, despite the growing popularity of graph databases, the lack of a standardized query language poses significant challenges to their wider adoption. The graph database community has developed Graph Query Language (GQL) to address this need. Nevertheless, standardizing GQL is challenging due to its complexity and constant expansion, and can result in errors and ambiguities even after thorough reviews~\cite{cpp-std-verified}. Furthermore, given the declarative nature of GQL, the database needs to determine how to fetch the data described in the query, leading to a greater number of possible implementations. This even poses into question the very existence of a realistic implementation.
+% However, despite the growing popularity of graph databases, the lack of a standardized query language poses significant challenges to their wider adoption. The graph database community has developed Graph Query Language (GQL) to address this need. Nevertheless, standardizing GQL is challenging due to its complexity and constant expansion, and can result in errors and ambiguities even after thorough reviews~\cite{cpp-std-verified}. Furthermore, given the declarative nature of GQL, the database needs to determine how to fetch the data described in the query, leading to a greater number of possible implementations. This even poses into question the very existence of a realistic implementation.
+
+However, unlike relational databases world with its SQL, there is no standardized language for these systems. In response, the graph database community has developed Graph Query Language (GQL). Standardization is essential for GQL because it simplifies the databases development process and makes it easier to create applications that can work across different graph database systems. With a standardized language like GQL, developers can write queries in a familiar syntax that can be easily understood and executed by different graph databases, promoting interoperability and making it easier to work with data stored in different systems.
+
+Nevertheless, standardizing GQL is challenging due to its complexity and constant expansion, and can result in errors and ambiguities even after thorough reviews~\cite{cpp-std-verified}. Furthermore, given the declarative nature of GQL, the database needs to determine how to fetch the data described in the query, leading to a greater number of possible implementations. This even poses into question the very existence of a realistic implementation.
+
+There has been an attempt to mathematically formalize the standard~\cite{GQL-formalized-on-paper} which we used as a reference, however, this attempt is still pen-and-paper and, as a result, is prone to errors. In fact, we have identified some errors in the aforementioned paper.
+
+% TODO: Describe the errors in the paper.
 
 % In fact, graph databases translate a query into an intermediate representation called \textbf{execution plan}, which is just a sequence of operations that need to be performed in order to evaluate the query. These operations inspect the graph and produce intermediate results that are later transformed by subsequent operations. This solution draws inspiration from relational databases world, where such approach has proven to be successful.
 
 % However, this still leaves a lot of space to the implementators of the standard. For example, Neo4j and RedisGraph use different sets of operations and implement them differently. The former divides a query into a large sequence of small and simple operations while the latter covers with one complex operation the bigger part of a query but its operations are heavily optimized using linear algebra. The situation is further complicated by the fact that the translation process itself is complex and contains a lot of subtle details.
 
-To address these challenges, we propose a formal approach to standardizing GQL and ensuring the correctness of the key details of query evaluation. Specifically, we aim to formalize the GQL semantics and demonstrate the correctness of the way that Neo4j and RedisGraph, our reference databases, translate queries to execution plans. To achieve this goal, we use the Coq proof assistant, a programming language that allows us to write and reason about programs with greater rigor and confidence. By providing a more robust approach to checking the correctness of the ecosystem around GQL, this work has the potential to contribute significantly to the wider adoption of graph databases.
+To address these challenges, we develop a mechanized specification of GQL and the key details of query evaluation. Specifically, we aim to mechanize semantics of the subset of GQL and demonstrate the correctness of the way that Neo4j and RedisGraph, our reference databases, translate queries to execution plans. To achieve this goal, we use the Coq proof assistant, a programming language that allows us to write and reason about programs with greater rigor and confidence. The key point is that proofs written in Coq are machine-checkable. By providing a more robust approach to checking the correctness of the ecosystem around GQL, this work has the potential to contribute significantly to the wider adoption of graph databases.
+
+There has been a successful attempt to mechanize a subset of the SQL standard~\cite{sql-in-coq} and even write a verified relational database in Coq~\cite{rdbms-in-coq}. Their experience has shown that though many challenges remain, building fully-verified systems software in Coq is within reach.
 
 % It allows to define mechanised, executable specifications whose correctness is machine-checkable.
 
@@ -103,17 +120,9 @@ To address these challenges, we propose a formal approach to standardizing GQL a
 
 % To achieve that goal, we have chosen the Coq proof assistant which is basically a programming language that allows for writing and reasoning about programs.
 
-\section{Related work}
-
-There have been an attempt to mathematically formalize the standard~\cite{GQL-formalized-on-paper} which we used as a reference, however, this attempt is still pen-and-paper and, as a result, is prone to errors. In fact, we have identified some errors in the aforementioned paper.
-
-% TODO: Describe the errors in the paper.
-
-In contrast, there has been a successful attempt to formalize a subset of the SQL standard~\cite{sql-in-coq} and even write a verified relational database in Coq~\cite{rdbms-in-coq}. Their experience has shown that though many challenges remain, building fully-verified systems software in Coq is within reach.
-
 \section{GQL and graph databases in a nutshell}
 
-In this section we describe the basics of GQL and graph databases. For formal definitions we refer the reader to the paper about mathematical formalization of GQL~\cite{GQL-formalized-on-paper}. We assume some familiarity with SQL and relational databases.
+In this section we describe the basics of GQL and graph databases. For formal definitions we refer the reader to the section~\ref{sec:technical-details}. We assume some familiarity with SQL and relational databases.
 
 \subsection{Property Graphs}
 \label{section:intro-property-graphs}
@@ -169,7 +178,7 @@ Because of the fact that all the records in any table have the same type, we can
   \label{tab:example-binding-table}
 \end{table}
 
-For example, in Table~\ref{tab:example-binding-table} there are two records and three attributes: \texttt{v : vertex}, \texttt{e : edge} and \texttt{u : vertex}. 
+For example, in Table~\ref{tab:example-binding-table} there are two records and three attributes: \texttt{v : vertex}, \texttt{e : edge}, and \texttt{u : vertex}. 
 
 
 \subsection{GQL queries syntax and semantics}
@@ -245,8 +254,8 @@ Moreover, the optimization step of the query evaluation is usually performed on 
       \texttt{ProduceResults} & Cleans up auxillary information. \\
       \hline
     \end{tabular}
-    \caption{The most important execution plan operations for Neo4j}
   \end{center}
+  \caption{The most important execution plan operations for Neo4j}
   \label{tab:execution-plan-operations-summary-Neo4j}
 \end{table}
 \begin{table}[t]
@@ -262,12 +271,14 @@ Moreover, the optimization step of the query evaluation is usually performed on 
       \texttt{ReturnAll} & Cleans up auxillary information. \\
       \hline
     \end{tabular}
-    \caption{The most important execution plan operations for RedisGraph}
   \end{center}
+  \caption{The most important execution plan operations for RedisGraph}
   \label{tab:execution-plan-operations-summary-RedisGraph}
 \end{table}
 
 Our reference databases, Neo4j and RedisGraph, use different sets of operations to evaluate queries. However, the general idea is the same. The tables~\ref{tab:execution-plan-operations-summary-Neo4j} and~\ref{tab:execution-plan-operations-summary-RedisGraph} show the most important operations for both databases.
+
+\todo{an example of translation}
 
 \section{Goals and objectives}
 
@@ -289,6 +300,8 @@ To achieve this goal, we have set the following objectives:
   
   The next objective is to define the translation from queries to execution plans and show that it is correct. Correctness in this case means that, according to the specification of the execution plan, the evaluation of translated queries satisfies the specification of GQL.
 
+  \todo{the picture that explains everything}
+
   % TODO: Show the scheme that explains what the correctness is.
 
   Neo4j and RedisGraph use different sets of operations and, thus, they translate queries differently. Therefore, we actually have to write two translators and prove their correctness separately.
@@ -305,15 +318,26 @@ To achieve this goal, we have set the following objectives:
 
 \end{itemize}
 
-\section{Technical details}
+\section{The specification of GQL semantics and key details of query evaluation}
+\label{sec:technical-details}
 
-In this section we describe the concrete definitions and theorems that we have proved as well as the ideas behind them.
+In this section we describe how we have achieved each of the objectives. We show the concrete definitions and theorems that we have proved as well as the ideas behind them.
 
 \subsection{The specification of the core subset of GQL}
 
-We start with the description of the core subset of GQL. We have chosen this subset because it is the simplest one that still reflects the main ideas of the language. We have also chosen this subset because it is the one that is used in the Neo4j and RedisGraph implementations.
+We start with the description of the core subset of GQL. We have chosen this subset because it is the simplest one that still reflects the main ideas of the language. 
+
+First, we formally describe the concrete syntax of the core subset of GQL. Then we formally specify the abstract syntax and semantics of the language. Finally, we show that the specification is complete.
+
+Our specification closely follows the aforementioned formalization in~\cite{GQL-formalized-on-paper}. However, we have introduced some new concepts and changed some definitions to make them more convenient for us. For example, we introduced the notion of types that allowed us to state well-formedness conditions in a simple way. We also introduced implicit names to model the query normalization which our reference databases perform. Moreover, we introduced matching modes to control which names occur in the resulting table. This allowed us to reason about the auxilliary information that graph databases use during query evaluation.
+
+\subsubsection{The concrete syntax of the core subset of GQL}
+\label{sec:GQL-syntax}
+
+\todo{the EBNF grammar}
 
 \subsubsection{Values}
+\label{sec:GQL-values}
 
 \begin{definition}
   We have the following \textbf{types} of \textbf{values} in our specification:
@@ -439,6 +463,7 @@ With this definition, we declare that we don't actually care about the order and
 This definition implies that the binding tables in which records have different types don't have types. Moreover, the type is not unique. For example, empty binding table can have any type, although this is the only example. This will make sense later when we will show the specification for some execution plan operations. However, this means that we cannot define ``type of'' operator for all binding tables. Luckily, we won't actually need it.
 
 \subsubsection{Patterns and paths}
+\label{sec:GQL-patterns-and-paths}
 
 Recall the example query from the section~\ref{section:intro-GQL}. As we previously discussed, the following part of the query is a path pattern:
 \begin{verbatim}
@@ -481,6 +506,7 @@ Note that the paths are not necessarily simple. We can visit the same vertex or 
 $$\pathhop{\pathhop{\pathstart{v_1}}{e_1}{v_2}}{e_2}{v_1}$$
 
 \subsubsection{Names}
+\label{sec:GQL-names}
 
 We postponed the discussion of names until now because we needed to introduce the notion of a path pattern first. Now we can define them. As we mentined earlier, names in vertex and edge patterns can be omitted, however, they might be required during the intermidiate calculations. For example, the way that Neo4j evaluates the query requires names for all vertex and edge patterns to be present. 
 
@@ -539,6 +565,7 @@ We could weaken the definition of the pattern-matching predicate by relaxing suc
 
 We can notice that if the record matches the pattern then it has the record has the same type as the pattern. We can state this formally.
 \begin{theorem}
+  \label{thm:matching-mode-type}
   If $\pi \models_m (p, r)$ then $T(r) = T_m(\pi)$.
 \end{theorem}
 \begin{proof}
@@ -559,6 +586,7 @@ To transfer the records between the matching modes we can define the notion of e
 \end{definition}
 
 \begin{theorem}
+  \label{thm:matching-mode-narrow}
   If $\pi \models_m (p, r)$ then $\pi \models_E (p, r |_E)$.
 \end{theorem}
 \begin{proof}
@@ -569,6 +597,7 @@ This theorem means that if we have a record that matches a pattern in any mode, 
 
 The converse is also true.
 \begin{theorem}
+  \label{thm:matching-mode-widen}
   If $\pi \models_E (p, r)$ then there is $r'$ such that $\pi \models_m (p, r')$ and $r = r'|_E$.
 \end{theorem}
 \begin{proof}
@@ -577,11 +606,13 @@ The converse is also true.
 
 In a similar fashion we can define the explicit projection of a type.
 \begin{definition}
-  \textbf{The explicit projection of a type} $T$, denoted by $T |_E$, is a record that contains only the explicit names from $T$.
+  \textbf{The explicit projection of a type} $T$, denoted by $T |_E$, is a type that contains only the explicit names from $T$.
 \end{definition}
 
 Moreover, we can establish simple connections between the explicit projections of records and types.
-\begin{theorem} If $r$ is a record and $\pi$ is a pattern, then:
+\begin{theorem}
+  \label{thm:explicit-projections-and-types}
+  If $r$ is a record and $\pi$ is a pattern, then:
   \begin{itemize}
     \item $T(r)|_E = T(r|_E)$
     \item $T_E(\pi) = (T_m(\pi)) |_E$
@@ -591,8 +622,6 @@ Moreover, we can establish simple connections between the explicit projections o
 \begin{proof}
   By the definitions.
 \end{proof}
-
-% TODO: describe the transitions between modes and explicit projections.
 
 \subsubsection{The well-formedness of a pattern}
 
@@ -636,6 +665,7 @@ Formally, we could specify it the following way:
 However, this definition requires us to check the well-formedness of the pattern and immediately reject ill-formed queries. This validation is tedious and is out of the scope of this thesis. Therefore, we use the following definition:
 
 \begin{definition}(The specification of GQL)
+  \label{def:specification-of-gql}
   Let $q$ be a query and $\pi$ be its pattern. Then $[q]$ must satisfy the following property:
   If $q$ is well-formed then $[q]$ is defined and $[q] = \{ r \mid \exists p : \pi \models_E (p, r) \}$.
   % \begin{itemize}
@@ -673,7 +703,7 @@ We can also show that resulting binding table has the desired type:
   $$[q] : T_E(\pi)$$
 \end{theorem}
 \begin{proof}
-  We already know that if $\pi \models_E (p, r)$ then $T(r) = T_E(\pi)$. We also know that if $r \in [q]$ then there is a $p$ such that $\pi \models_E (p, r)$. Therefore, if $r \in [q]$ then $T(r) = T_E(\pi)$. So $[q] : T_E(\pi)$.
+  By the theorem~\ref{thm:matching-mode-type} we already know that if $\pi \models_E (p, r)$ then $T(r) = T_E(\pi)$. We also know by the definition~\ref{def:specification-of-gql} that if $r \in [q]$ then there is a $p$ such that $\pi \models_E (p, r)$. Therefore, if $r \in [q]$ then $T(r) = T_E(\pi)$. So $[q] : T_E(\pi)$.
 \end{proof}
 
 \subsection{The specification of the execution plan}
@@ -686,7 +716,6 @@ We have distilled five operations from Neo4j and RedisGraph implementations that
 
 \begin{definition}[the execution plan operations] $ $
   % \textbf{The execution plan operations} are the following:
-  % TODO: Add a use case for each operation. 
   \begin{itemize}
     \item \textbf{\texttt{ScanVertices}}. This is the operation from which the evaluation of any query begins. It retrieves all the vertices from the graph and returns a table with a single column containing all the vertices. This operation takes one parameter which is \textit{the name of the column}. 
 
@@ -986,41 +1015,54 @@ To the point where we process the second edge pattern, both \texttt{u} and \text
   Let's denote the plan for a path pattern $\pi$ by $P(\pi)$.
 \end{definition}
 
- We can now show lots of important properties using the machinery we developed earlier.
+We can now show lots of important properties using the machinery we developed earlier.
 
-\begin{theorem} If $\pi$ is well-formed then
+\begin{lemma}
+  \label{lem:neo4j-translation-type}
+  If $\pi$ is well-formed then
   $$T(P'(\pi)) = T_F(\pi)$$
-\end{theorem}
+\end{lemma}
 \begin{proof}
   By straightforward induction on the structure of the pattern.
 \end{proof}
 
-\begin{theorem} If $\pi$ is well-formed then
+That is, the \texttt{Expand} operation doesn't differentiate between implicit and explicit names which means that all the names are present in the resulting binding table. That is why the last lemma is stated using the full matching mode. However, after the \texttt{ReturnAll} operation, only the names that were explicitly specified in the path pattern are left in the result. This is reflected in the following theorem.
+
+\begin{theorem}
+  \label{thm:neo4j-translation-type}
+  If $\pi$ is well-formed then
   $$T(P(\pi)) = T_E(\pi)$$
 \end{theorem}
 \begin{proof}
   $ T(P(\pi)) = T(P'(\pi))|_E = T_F(\pi)|_E = T_E(\pi) $
 \end{proof}
 
-\begin{theorem} If $\pi$ is well-formed then
+\begin{lemma} If $\pi$ is well-formed then
   $$[P'(\pi)]_G = \{ r \mid \exists p : \pi \models_F (p, r) \}$$
-\end{theorem}
+\end{lemma}
 \begin{proof}
   By straightforward induction on the structure of the pattern.
 \end{proof}
+
+We again use the full matching mode because all the names are necessary for this translation algorithm to compute the result. As we already mentioned, we could have weaken the pattern-matching predicate to work only with explicit names leaving the behavior for implicit names unspecified. However, this would make it impossible to prove the following theorem because the \texttt{Expand} operation would refer to and rely on the unspecified data which is from the standpoint of rigourous proofs is absolutely arbitrary.
 
 \begin{theorem} If $\pi$ is well-formed then
   $$[P(\pi)]_G = \{ r \mid \exists p : \pi \models_E (p, r) \}$$
 \end{theorem}
-\begin{proof}
-  As we already know, if $\pi \models_F (p, r)$ then $\pi \models_F (p, r|_E)$.
+\begin{proof} From the specification of \texttt{ReturnAll} and the previous theorem we know:
+  $$[P(\pi)]_G = \{ r|_E \mid r \in [P'(\pi)]_G \} = \{ r|_E \mid \exists p : \pi \models_F (p, r) \} $$
+  So we need to prove that:
+  $$ \{ r|_E \mid \exists p : \pi \models_F (p, r) \} = \{ r \mid \exists p : \pi \models_E (p, r) \} $$
+  By the theorem~\ref{thm:matching-mode-narrow} we already know that if $\pi \models_F (p, r)$ then $\pi \models_E (p, r|_E)$. Moreover, by the theorem~\ref{thm:matching-mode-widen} we know that if $\pi \models_E (p, r')$ then there is $r$ such that $r' = r|_E$ and $\pi \models_F (p, r)$. So we can conclude that the equality holds.
 \end{proof}
 
-\begin{theorem}
+The last theorem is the most important one because it shows that the translation algorithm does exactly what we want from it: it finds all the paths that match the pattern and returns only the names that were explicitly specified in the pattern.
+
+\begin{lemma}
   If $\pi$ is well-formed then $P'(\pi)$ is well-formed.
-\end{theorem}
+\end{lemma}
 \begin{proof}
-  By straightforward induction on the structure of the pattern.
+  By straightforward induction on the structure of the pattern and usage of the lemma~\ref{lem:neo4j-translation-type}.
 \end{proof}
 
 \begin{theorem}
@@ -1030,25 +1072,61 @@ To the point where we process the second edge pattern, both \texttt{u} and \text
   \texttt{ReturnAll} doesn't pose any new well-formedness restrictions.
 \end{proof}
 
-Let $q$ be a query and $\pi$ its path pattern. If define the query evaluation function as $[q]_G := [P(\pi)]_G$. We can now show that it satisfies the specification of GQL.
+Let $q$ be a query and $\pi$ its path pattern. Let's define the query evaluation function as $[q]_G := [P(\pi)]_G$. We can now show that it satisfies the specification of GQL using the just proven theorems.
 
-% by the means of \textbf{the translation function} $P(\cdot)$
+\subsubsection{RedisGraph}
+
+\todo{...}
 
 \subsection{The implementation of the execution plan operations}
 
+\todo{...}
 
-% % Рисунок, размещенный с предпочтением "вверху страницы"
-% \begin{figure}[t]
-% \label{discontinuities}
-% \centering
-% \includegraphics{img/fig1.jpg}
-% \caption{Discontinuity}
-% \end{figure}
+\section{The mechanization in Coq}
+
+In this section we describe the layout of Coq project and outline where the definitions and theorems are located.
+
+\subsection{The project dependencies}
+
+We use the following libraries:
+\begin{itemize}
+  \item \texttt{hahn} for a lot of convenient automation tactics;
+  \item \texttt{relational-algebra} for the boolean matrices.
+\end{itemize}
+
+\subsection{The files structure}
+
+We have the following files in the project. Each file depends only on the files that are listed before:
+\begin{itemize}
+  \item \texttt{Utils.v} contains some utility definitions and lemmas that are absent in the standard library;
+  \item \texttt{RAUtils.v} contains some utility definitions and lemmas that are absent in the relational-algebra library;
+  \item \texttt{Maps.v} contains the definitions of total and partial maps, which are then used to define records and their types, the update syntax and some lemmas about them;
+  \item \texttt{PropertyGraph.v} contains the definition of the property graphs;
+  \item \texttt{Cypher.v} contains the definition of the GQL abstract syntax, including names and path patterns;
+  \item \texttt{BindingTable.v} contains the definitions of the values, types and binding tables;
+  \item \texttt{Semantics.v} contains the specification of the GQL semantics, including matching modes and the pattern-matching predicate;
+  \item \texttt{PatternE.v} contains the definitions of the pattern and path slices and the pattern-matching predicate for them;
+  \item \texttt{ExecutionPlan.v} contains the specification of the execution plan;
+  \item \texttt{Translation.v} contains the Neo4j-like translation algorithm and the proof of its correctness;
+  \item \texttt{Translation2.v} contains the RedisGraph-like translation algorithm and the proof of its correctness;
+  \item \texttt{TraverseOpImpl.v} contains the implementation of the \texttt{Traverse} operation and the proof of its correctness;
+  \item \texttt{ExecutionPlanImpl.v} contains the implementation of all the other operations and the proof of their correctness.
+\end{itemize}
+
+\subsection{The used axioms}
+
+This project only supposes \textit{the functional extensionality} axiom. It is used to prove the equalities between records because records are defined as functions.
+
+We don't apply, for example, \textit{the law of excluded middle} or any other axiom from classical logic which means that our proofs are fully constructive.
+
+\todo{how we used modules and functors for specifications}
 
 % У заключения нет номера главы
 \section*{Conclusion and future work}
 
 In summary, we aimed to write the specification of a subset of GQL and execution plans and show the correctness of the query translation for two reference databases, Neo4j and RedisGraph. We have completed all our subgoals.
+
+\todo{repeat the subgoals}
 
 There are many directions in which this project can go. For example, we can continue by expanding the current subset of GQL or turn our code into an extensible framework to allow easier reasoning about graph query languages and their semantics.
 
