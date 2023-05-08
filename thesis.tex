@@ -76,13 +76,13 @@
 
 Databases have come a long way since their inception, and today we have a plethora of database types available, each designed to serve a particular use-case~\cite{database-types}. One of the more recent types to gain popularity are graph databases.
 
-As the name suggests, graph databases represent data using graphs. While the idea of representing data with graphs isn't new with solutions developed as early as the mid-1960s, the first enterprise-ready ACID-compliant transactional database only emerged in 2007 with the release of Neo4j~\cite{enwiki:1146498781}. Since then, many graph databases such as Amazone Neptune, RedisGraph and NebulaGraph have sprung up~\cite{enwiki:1146498781}, with successful applications in various fields including recommendation services, fraud detection in finance~\cite{neo4j:use-cases} and even investigations of corruption schemes~\cite{icij:offshoreleaks}.
+As the name suggests, graph databases represent data using graphs. While the idea of representing data with graphs is not new with solutions developed as early as the mid-1960s, the first enterprise-ready ACID-compliant transactional database only emerged in 2007 with the release of Neo4j~\cite{enwiki:1146498781}. Since then, many graph databases such as Amazone Neptune, RedisGraph and NebulaGraph have sprung up~\cite{enwiki:1146498781}, with successful applications in various fields including recommendation services, fraud detection in finance~\cite{neo4j:use-cases} and even investigations of corruption schemes~\cite{icij:offshoreleaks}.
 
 % However, despite the growing popularity of graph databases, the lack of a standardized query language poses significant challenges to their wider adoption. The graph database community has developed Graph Query Language (GQL) to address this need. Nevertheless, standardizing GQL is challenging due to its complexity and constant expansion, and can result in errors and ambiguities even after thorough reviews~\cite{cpp-std-verified}. Furthermore, given the declarative nature of GQL, the database needs to determine how to fetch the data described in the query, leading to a greater number of possible implementations. This even poses into question the very existence of a realistic implementation.
 
-However, unlike relational databases world with its SQL, there is no standardized language for these systems. In response, the graph database community has developed Graph Query Language (GQL). Standardization is essential for GQL because it simplifies the databases development process and makes it easier to create applications that can work across different graph database systems. With a standardized language like GQL, developers can write queries in a familiar syntax that can be easily understood and executed by different graph databases, promoting interoperability and making it easier to work with data stored in different systems.
+However, unlike relational databases world with its SQL, there is no standardized language for these systems. In response, the graph database community has developed Graph Query Language (GQL) which is currently being standardized. Standardization is essential for a query language because it simplifies the databases development process and makes it easier to create applications that can work across different graph database systems. With a standardized language like GQL, developers can write queries in a familiar syntax that can be easily understood and executed by different graph databases, promoting interoperability and making it easier to work with data stored in different systems.
 
-Nevertheless, standardizing GQL is challenging due to its complexity and constant expansion, and can result in errors and ambiguities even after thorough reviews~\cite{cpp-std-verified}. Furthermore, given the declarative nature of GQL, the database needs to determine how to fetch the data described in the query, leading to a greater number of possible implementations. This even poses into question the very existence of a realistic implementation.
+Nevertheless, standardizing GQL is challenging due to its complexity and constant expansion, and can result in errors and ambiguities even after thorough reviews as the experience with another well-known standardized language has shown~\cite{cpp-std-verified}. Furthermore, given the declarative nature of GQL, the database needs to determine how to fetch the data described in the query, leading to a greater number of possible implementations. The very existence of a realistic implementation can be questioned in this case.
 
 There has been an attempt to mathematically formalize the standard~\cite{GQL-formalized-on-paper} which we used as a reference, however, this attempt is still pen-and-paper and, as a result, is prone to errors. In fact, we have identified some errors in the aforementioned paper.
 
@@ -92,7 +92,7 @@ There has been an attempt to mathematically formalize the standard~\cite{GQL-for
 
 % However, this still leaves a lot of space to the implementators of the standard. For example, Neo4j and RedisGraph use different sets of operations and implement them differently. The former divides a query into a large sequence of small and simple operations while the latter covers with one complex operation the bigger part of a query but its operations are heavily optimized using linear algebra. The situation is further complicated by the fact that the translation process itself is complex and contains a lot of subtle details.
 
-To address these challenges, we develop a mechanized specification of GQL and the key details of query evaluation. Specifically, we aim to mechanize semantics of the subset of GQL and demonstrate the correctness of the way that Neo4j and RedisGraph, our reference databases, translate queries to execution plans. To achieve this goal, we use the Coq proof assistant, a programming language that allows us to write and reason about programs with greater rigor and confidence. The key point is that proofs written in Coq are machine-checkable. By providing a more robust approach to checking the correctness of the ecosystem around GQL, this work has the potential to contribute significantly to the wider adoption of graph databases.
+To address these challenges, we develop a mechanized specification of GQL and the key details of query evaluation. Specifically, we aim to mechanize the semantics of the subset of GQL and demonstrate the correctness of the way that Neo4j and RedisGraph, our reference databases, translate queries to execution plans. To achieve this goal, we use the Coq proof assistant, a programming language that allows us to write and reason about programs with greater rigor and confidence. The key point is that proofs written in Coq are machine-checkable. By providing a more robust approach to checking the correctness of the ecosystem around GQL, this work has the potential to contribute significantly to the wider adoption of graph databases.
 
 There has been a successful attempt to mechanize a subset of the SQL standard~\cite{sql-in-coq} and even write a verified relational database in Coq~\cite{rdbms-in-coq}. Their experience has shown that though many challenges remain, building fully-verified systems software in Coq is within reach.
 
@@ -122,7 +122,7 @@ There has been a successful attempt to mechanize a subset of the SQL standard~\c
 
 \section{GQL and graph databases in a nutshell}
 
-In this section we describe the basics of GQL and graph databases. For formal definitions we refer the reader to the section~\ref{sec:technical-details}. We assume some familiarity with SQL and relational databases.
+In this section we describe the basics of GQL and graph databases. For formal definitions we refer the reader to section~\ref{sec:technical-details}. We assume some familiarity with SQL and relational databases.
 
 \subsection{Property Graphs}
 \label{section:intro-property-graphs}
@@ -152,6 +152,8 @@ In the subset of GQL we are interested in there are the following types of value
 \end{itemize}
 
 Values of all of these types can be used in properties of graph objects.
+
+You might be confused by the fact that boolean type includes a third value but this is common in databases world and GQL is not an exception. Discussing the intricacies of three-valued logic is out of scope of this work. For now, it is enough to know that we have all the usual basic types in GQL.
 
 \subsection{Binding tables}
 \label{section:intro-binding-tables}
@@ -184,7 +186,7 @@ For example, in Table~\ref{tab:example-binding-table} there are two records and 
 \subsection{GQL queries syntax and semantics}
 \label{section:intro-GQL}
 
-GQL queries consist of clauses, keywords and expressions like predicates and functions, many of which will be familiar to the users of SQL.
+GQL queries consist of clauses, keywords and expressions (like predicates and functions) many of which will be familiar to the users of SQL.
 
 
 The following example query consists of three clauses:
@@ -224,11 +226,15 @@ Names, labels and property patterns are optional. If a name is not specified, th
 
 The syntax \texttt{-[]->} says that the edge is directed from left to right, from the person to the company. We can also use \texttt{<-[]-} to match the edges in the reversed direction. And \texttt{-[]-} to say that the direction of the edge does not matter.
 
+From the formal point of view, these paths are not simple paths, i. e. they are actually walks. You can think of them as alternating sequences of vertex and edge identifiers which must have the same length as the path pattern and each vertex or edge identifier must satisfy the restrictions imposed by the vertex or edge pattern on the same position.
+
+For example, the paths that satisfy the example path pattern have the following form: $\pathhop{\pathstart{v_1}}{e}{v_2}$. Where $v_1$ must satisfy the vertex pattern \verb+(p:Person)+, $e$ must satisfy the edge pattern \verb+-[e:WORKS_FOR]->+ and $v_2$ must satisfy the vertex pattern \verb+(c:Company {"name": "JB"})+.
+
 In the \texttt{WHERE}-clause the predicate \verb+e.since >= 2020+ says that the edge must have a property ``since'' with an integer value greater than or equal to 2020.
 
 % TODO: grammar for the subset of GQL
 
-If we run the example query on the example graph from Figure~\ref{fig:property-graph}, we will get the binding table~\ref{tab:example-query-binding-table}. This is because there is only one path in the graph that matches the pattern: $\pathhop{\pathstart{0}}{0}{1}$ (node 0 has the label \texttt{Person}, node 1 has a label \texttt{Company} and edge 0 has a label \texttt{WORKS\_FOR} and a property ``name'' with a value of ``JB''). Edge 0 also has a property ``since'' with a value of 2022 which is greater than 2020. So the predicate is true and the record is included in the result.
+If we run the example query on the example graph from Figure~\ref{fig:property-graph}, we will get binding table~\ref{tab:example-query-binding-table}. This is because there is only one path in the graph that matches the pattern: $\pathhop{\pathstart{0}}{0}{1}$ (node 0 has the label \texttt{Person}, node 1 has a label \texttt{Company} and edge 0 has a label \texttt{WORKS\_FOR} and a property ``name'' with a value of ``JB''). Edge 0 also has a property ``since'' with a value of 2022 which is greater than 2020. So the predicate is true and the record is included in the result.
 
 \subsection{Execution plans}
 
@@ -276,7 +282,7 @@ Moreover, the optimization step of the query evaluation is usually performed on 
   \label{tab:execution-plan-operations-summary-RedisGraph}
 \end{table}
 
-Our reference databases, Neo4j and RedisGraph, use different sets of operations to evaluate queries. However, the general idea is the same. The tables~\ref{tab:execution-plan-operations-summary-Neo4j} and~\ref{tab:execution-plan-operations-summary-RedisGraph} show the most important operations for both databases.
+Our reference databases, Neo4j and RedisGraph, use different sets of operations to evaluate queries. However, the general idea is the same. Tables~\ref{tab:execution-plan-operations-summary-Neo4j} and~\ref{tab:execution-plan-operations-summary-RedisGraph} show the most important operations for both databases.
 
 \todo{an example of translation}
 
@@ -312,7 +318,7 @@ To achieve this goal, we have set the following objectives:
   
   Implementing almost all of the operations is pretty straightforward because they are simple enough. It is worth noting that we mostly aim to provide an implementation that just works. We are not trying to optimize the implementation for performance as it is out of the scope of this project.
 
-  However, RedisGraph-specific \texttt{Traverse} operation is much more complex. Even though, we could implement it in a similar way as any other: making it just work, we decided that we want to capture the way RedisGraph implements it: using matrices. 
+  However, one RedisGraph-specific operation is much more complex. Even though, we could implement it in a similar way as any other: making it just work, we decided that we want to capture the way RedisGraph implements it: using matrices. 
   
   % It has to translate a pattern slice into a complex matrix expression, evaluate the expression and iterate over the resulting matrix producing the resulting table. 
 
@@ -325,11 +331,9 @@ In this section we describe how we have achieved each of the objectives. We show
 
 \subsection{The specification of the core subset of GQL}
 
-We start with the description of the core subset of GQL. We have chosen this subset because it is the simplest one that still reflects the main ideas of the language. 
+We start with the description of the core subset of GQL. First, we formally describe the concrete syntax of the subset. Then we formally specify its abstract syntax and semantics. Finally, we show that this specification is complete.
 
-First, we formally describe the concrete syntax of the core subset of GQL. Then we formally specify the abstract syntax and semantics of the language. Finally, we show that the specification is complete.
-
-Our specification closely follows the aforementioned formalization in~\cite{GQL-formalized-on-paper}. However, we have introduced some new concepts and changed some definitions to make them more convenient for us. For example, we introduced the notion of types that allowed us to state well-formedness conditions in a simple way. We also introduced implicit names to model the query normalization which our reference databases perform. Moreover, we introduced matching modes to control which names occur in the resulting table. This allowed us to reason about the auxilliary information that graph databases use during query evaluation.
+Our specification closely follows the aforementioned formalization~\cite{GQL-formalized-on-paper}. However, we have introduced some new concepts and changed some definitions to make them more convenient for us. For example, we introduced the notion of types that allowed us to state well-formedness conditions in a simple way. We also introduced implicit names to model the query normalization which our reference databases perform. Moreover, we introduced matching modes to control which names occur in the resulting table. This allowed us to reason about the auxilliary information that graph databases use during query evaluation.
 
 \subsubsection{The concrete syntax of the core subset of GQL}
 \label{sec:GQL-syntax}
@@ -349,7 +353,7 @@ Our specification closely follows the aforementioned formalization in~\cite{GQL-
 \end{definition}
 
 \begin{definition}
-  Given the value $v$ we can define the ``type of'' operator: $\mathtt{T}(v)$. It returns the type of the value $v$. For example, if we mean by $1$ an integer, then $\mathtt{T}(1) = \mathtt{int}$.
+  Given the value $v$ we can define the ``type of'' operator: $\mathtt{T}(v)$. It returns the type of the value $v$. For example, if we use ``1'' as an integer, then $\mathtt{T}(1) = \mathtt{int}$.
 \end{definition}
 
 \begin{definition}
@@ -372,7 +376,7 @@ We start with the formal definition of property graphs. In short, a property gra
 \begin{definition}[Property graphs]
   We have chosen the following formal representation of property graphs:
   \begin{itemize}
-    \item \textbf{Vertices and edges} are represented as finite sets of identifiers. We denote a set of vertices and a set of edges by $V$ and $E$, respectively. As mentioned earlier, these sets are not necessarily disjoint. Additionally, these sets can contain any numbers, however, we want these sets to be as close to $\{1 \dots |V|\}$ and $\{1 \dots |E|\}$ as possible. It is because we want to use these sets as indices in matrices. This way we can minimize the size of the matrices. Requiring that the sets are exactly of this form is, in practice, impossible if we take into account potential updates and deletions of vertices and edges.
+    \item \textbf{Vertices and edges} are represented as finite sets of identifiers. We denote a set of vertices and a set of edges by $V$ and $E$, respectively. These sets can contain any numbers, however, we want these sets to be as close to $\{1 \dots |V|\}$ and $\{1 \dots |E|\}$ as possible. It is because we want to use these sets as indices in matrices. This way we can minimize the size of the matrices. Requiring that the sets are exactly of this form is, in practice, impossible if we take into account potential updates and deletions of vertices and edges.
     \item \textbf{Edge ends mapping function} denoted by $\eta$ is a function from $E$ to $V \times V$ which maps an edge to its ends. Note that with this definition all the edges are directed.
     \item \textbf{Labelling functions} are functions $\lambda_V : V \to 2^L$ and $\lambda_E : E \to L$ which map vertices and edges to their labels. Note that we use the powerset of labels for $\lambda_V$ because a vertex can have multiple labels. However, an edge can have one and only one label. The label of an edge is often called its \textit{type}. With this definition, we can say that a node $v$ or an edge $e$ has a label $l$ if $l \in \lambda_V(v)$ or $\lambda_E(e) = l$, respectively.
     \item \textbf{Properties mapping functions} are functions $\phi_V : V \to 2^P$ and $\phi_E : E \to 2^P$ which map vertices and edges to their properties. Note that we use the powerset of properties because a vertex or an edge can have multiple properties. However, we restrict those subsets to be finite.
@@ -442,7 +446,7 @@ With these notations we can easily write down any record with a finite domain: $
   \textbf{The type of a record} $r$ is denoted by $T(r)$. $T(r)(n)$ is defined iff $r(n)$ is defined and $T(r)(n) = T(r(n))$.
 \end{definition}
 
-That is, the type of a record is a function that maps names to types of values stored under these names in the record. Moreover, we use the same notations for the types of records as for the records. For example, $T(n_1 \mapsto 1; n_2 \mapsto 2.0) = (n_1 \mapsto \mathtt{int}; n_2 \mapsto \mathtt{float})$.
+That is, the type of a record is a function that maps names to types of values stored under these names in the record. Moreover, we use the same update syntax for the types of records. For example, $T(n_1 \mapsto 1; n_2 \mapsto 2.0) = (n_1 \mapsto \mathtt{int}; n_2 \mapsto \mathtt{float})$.
 
 \begin{definition}
   In the similar to values manner, we can define \textbf{the typing relation for records}:
@@ -450,7 +454,7 @@ That is, the type of a record is a function that maps names to types of values s
 \end{definition}
 
 \begin{definition}
-  \textbf{A binding table} is a set of some records.
+  \textbf{A binding table} is some set of records.
 \end{definition}
 
 With this definition, we declare that we don't actually care about the order and number of repetitions of records in the table.
@@ -460,12 +464,12 @@ With this definition, we declare that we don't actually care about the order and
   $$ t : T \Longleftrightarrow \forall r \in t, \, r : T $$
 \end{definition}
 
-This definition implies that the binding tables in which records have different types don't have types. Moreover, the type is not unique. For example, empty binding table can have any type, although this is the only example. This will make sense later when we will show the specification for some execution plan operations. However, this means that we cannot define ``type of'' operator for all binding tables. Luckily, we won't actually need it.
+This definition implies that the binding tables in which records have different types don't have types. Moreover, the type is not unique. For example, empty binding table can have any type, although this is the only example. This will make sense later when we show the specification for some execution plan operations. However, this means that we cannot define ``type of'' operator for all binding tables. Luckily, we will not actually need it.
 
 \subsubsection{Patterns and paths}
 \label{sec:GQL-patterns-and-paths}
 
-Recall the example query from the section~\ref{section:intro-GQL}. As we previously discussed, the following part of the query is a path pattern:
+Recall the example query from section~\ref{section:intro-GQL}. As we discussed in that section, the following part of the query is a path pattern:
 \begin{verbatim}
   (p:Person)-[e:WORKS_FOR]->(c:Company {"name": "JB"})
 \end{verbatim}
@@ -520,17 +524,17 @@ This way, even though, the names can be omitted in the original query, they are 
 
 \subsubsection{The pattern-matching predicate and matching modes}
 
-Let's fix the property graph $G$ on which we operate. We can now informally define the pattern-matching predicate as follows:
+We can now informally define the pattern-matching predicate as follows:
 
 \begin{definition}
-   A path $p$ with a record $r$ \textbf{matches} a pattern $\pi$ if and only if: $p$ matches $\pi$ and $r$ represents $p$. This is denoted as $\pi \models (p, r)$.
+   A path $p$ in a graph $G$ with a record $r$ \textbf{matches} a pattern $\pi$ if and only if: $p$ matches $\pi$ and $r$ represents $p$. This is denoted as $(G, p, r) \models \pi$.
 \end{definition}
 
 The idea behind this definition is the following: it is convinient to define the pattern-matching using real paths in the graph. However, the output of a query is not a set of paths but a binding table. Therefore, we need to represent paths with records.
 
 Informally defining what it means for a path to match a pattern is easy: the structure of the path must match the structure of the pattern, and vertices and edges must satisfy the requirements of the corresponding vertex and edge patterns. More concretely, the directions of the edges must match and vertices and edges must have the required labels and properties.
 
-Representing paths with records is pretty easy too: an edge or a vertex of the path must appear in the record with the name specified in the corresponding vertex or edge pattern.
+Representing paths with records is pretty straightforward too: an edge or a vertex of the path must appear in the record with the name specified in the corresponding vertex or edge pattern.
 
 However, the path structure contains the full information about the path in the graph while in the resulting table we might not need all of it. For example, if the name in the original query was omitted (i. e. the name appeared after normalization and, thus, is implicit), the corresponding column in the resulting table should not appear. This is why we introduce the notion of the matching mode. It controls which names should appear in records.
 
@@ -547,7 +551,7 @@ This way, we can use, for example, the full mode during the query evaluation but
 
 \begin{definition}
   We can denote the matching mode using the following notation:
-  $ \pi \models_m (p, r) $
+  $ (G, p, r) \models_m \pi $
   where $m$ is either $F$, $E$ or $M$ standing for full, explicit and mixed matching modes respectively.
 \end{definition}
 
@@ -566,7 +570,7 @@ We could weaken the definition of the pattern-matching predicate by relaxing suc
 We can notice that if the record matches the pattern then it has the record has the same type as the pattern. We can state this formally.
 \begin{theorem}
   \label{thm:matching-mode-type}
-  If $\pi \models_m (p, r)$ then $T(r) = T_m(\pi)$.
+  If $(G, p, r) \models_m \pi$ then $T(r) = T_m(\pi)$.
 \end{theorem}
 \begin{proof}
   By straightforward induction on the structure of the pattern.
@@ -587,18 +591,18 @@ To transfer the records between the matching modes we can define the notion of e
 
 \begin{theorem}
   \label{thm:matching-mode-narrow}
-  If $\pi \models_m (p, r)$ then $\pi \models_E (p, r |_E)$.
+  If $(G, p, r)\models_m \pi$ then $(G, p, r |_E) \models_E \pi$.
 \end{theorem}
 \begin{proof}
-  By the definition of the pattern-matching predicate and the explicit projection.
+  By definition of the pattern-matching predicate and the explicit projection.
 \end{proof}
 
 This theorem means that if we have a record that matches a pattern in any mode, we can easily obtain a record that matches the same pattern in the explicit mode. This is why we can use the explicit mode in the final result while using other modes during the query evaluation.
 
-The converse is also true.
+The converse is also true. In other words, if we lost some names in the record, we can easily restore them.
 \begin{theorem}
   \label{thm:matching-mode-widen}
-  If $\pi \models_E (p, r)$ then there is $r'$ such that $\pi \models_m (p, r')$ and $r = r'|_E$.
+  If $(G, p, r) \models_E \pi$ then there is $r'$ such that $(G, p, r')\models_m \pi$ and $r = r'|_E$.
 \end{theorem}
 \begin{proof}
   We can construct $r'$ because $p$ contains the full information.
@@ -630,15 +634,15 @@ Not all patterns born equal. Some of them can be ill-constructed and cause a lot
 \begin{definition}
   \textbf{A pattern is well-formed} if the following is true about the names of its vertex and edge patterns:
   \begin{itemize}
-    \item No vertex and edge pattern can have the same name.
+    \item No vertex pattern can have the same name as any edge pattern. In other words, no vertex and edge pattern can have the same name.
     \item All implicit names are distinct.
     \item All edge names are distinct.
   \end{itemize}
 \end{definition}
 
-Note that an implicit and an explicit name are always considered distinct even if they share the same string. This is because the implicit names are tagged that they are implicit. So we can always distinguish explicit names from implicit.
+Note that the explicit vertex names may repeat. As we mentioned earlier, this allows us to look for cycles in the graph.
 
-Also note that the explicit vertex names may repeat. As we mentioned earlier, this allows us to look for cycles in the graph.
+Also note that an implicit and an explicit name are always considered distinct even if they share the same string. This is because the implicit names are tagged that they are implicit. So we can always distinguish explicit names from implicit.
 
 \subsubsection{The specification of GQL}
 
@@ -650,24 +654,24 @@ Again, by now we focus only on the path patterns. Therefore, all of our queries 
 \end{definition}
 
 \begin{definition}
-  \textbf{The query evaluation function} $[ \cdot ]$ is a partial function from queries to binding tables. The $[q]$ is defined when the evaluation of $q$ succeeds and is equal to the resulting binding table.
+  For graph $G$ \textbf{the query evaluation function} $[ \cdot ]_G$ is a partial function from queries to binding tables. The $[q]_G$ is defined when the evaluation of $q$ succeeds on the graph $G$ and is equal to the resulting binding table.
 \end{definition}
 
-Note that the function is partial. For example, $[q]$ might not be defined if $q$ is not well-formed.
+Note that the function is partial. For example, $[q]_G$ might not be defined if $q$ is not well-formed.
 
 The specification of GQL turns out to be the specification of the query evaluation function.
 
 Formally, we could specify it the following way:
 \begin{align*}
-  [\texttt{MATCH} \; \pi \; \texttt{RETURN *}] = \{ r \mid \exists p : \pi \models_E (p, r) \} \\ \text{ if $\pi$ is well-formed, otherwise undefined }
+  [\texttt{MATCH} \; \pi \; \texttt{RETURN *}]_G = \{ r \mid \exists p : (G, p, r) \models_E \pi \} \\ \text{ if $\pi$ is well-formed, otherwise undefined }
 \end{align*} 
 
 However, this definition requires us to check the well-formedness of the pattern and immediately reject ill-formed queries. This validation is tedious and is out of the scope of this thesis. Therefore, we use the following definition:
 
 \begin{definition}(The specification of GQL)
   \label{def:specification-of-gql}
-  Let $q$ be a query and $\pi$ be its pattern. Then $[q]$ must satisfy the following property:
-  If $q$ is well-formed then $[q]$ is defined and $[q] = \{ r \mid \exists p : \pi \models_E (p, r) \}$.
+  Let $q$ be a query and $\pi$ be its pattern. Then $[q]_G$ must satisfy the following property:
+  If $q$ is well-formed then $[q]_G$ is defined and $[q]_G = \{ r \mid \exists p : (G, p, r) \models_E \pi \}$.
   % \begin{itemize}
   %   \item If $q$ is well-formed then $[q]$ is defined.
   %   \item If $\pi$ is well-formed and there is a $p$ and $r$ such that $\pi \models_E (p, r)$ then $r \in [q]$.
@@ -692,8 +696,12 @@ Note that if the pattern is ill-formed the behaviour of the query evaluation fun
 
 This definition immediately allows us to establish the following important property:
 \begin{theorem}[The completeness of the specification]
-  If $[\cdot]_1$ and $[\cdot]_2$ are two query evaluation functions that satisfy the axioms and $q$ is a \textit{well-formed} query then $[q]_1 = [q]_2$.
+  Let's fix the graph $G$.
+  If $[\cdot]_1$ and $[\cdot]_2$ are two query evaluation functions that satisfy the specification and $q$ is a \textit{well-formed} query then $[q]_1 = [q]_2$.
 \end{theorem}
+\begin{proof}
+  $$[q]_1 = \{ r \mid \exists p : (G, p, r) \models_E \pi \} = [q]_2$$
+\end{proof}
 
 In other words, if we have two implementations of the query evaluation function that satisfy the specification then their observed behaviour is the same.
 
@@ -703,7 +711,7 @@ We can also show that resulting binding table has the desired type:
   $$[q] : T_E(\pi)$$
 \end{theorem}
 \begin{proof}
-  By the theorem~\ref{thm:matching-mode-type} we already know that if $\pi \models_E (p, r)$ then $T(r) = T_E(\pi)$. We also know by the definition~\ref{def:specification-of-gql} that if $r \in [q]$ then there is a $p$ such that $\pi \models_E (p, r)$. Therefore, if $r \in [q]$ then $T(r) = T_E(\pi)$. So $[q] : T_E(\pi)$.
+  By the theorem~\ref{thm:matching-mode-type} we already know that if $(G, p, r) \models_E \pi$ then $T(r) = T_E(\pi)$. We also know by the definition~\ref{def:specification-of-gql} that if $r \in [q]$ then there is a $p$ such that $(G, p, r) \models_E \pi$. Therefore, if $r \in [q]$ then $T(r) = T_E(\pi)$. So $[q] : T_E(\pi)$.
 \end{proof}
 
 \subsection{The specification of the execution plan}
@@ -712,7 +720,7 @@ In this section we describe which operation we have chosen for our purposes and 
 
 \subsubsection{The operations}
 
-We have distilled five operations from Neo4j and RedisGraph implementations that are enough to evaluate the queries. All of these operations produce a table but some of them also take a table as input. In other table, some operation produce tables to start with while other operations take and transform these tables. The execution plan is organized into a sequence of these transformations.
+We have distilled five operations from Neo4j and RedisGraph implementations that are enough to evaluate the queries. All of these operations produce a table but some of them also take a table as input. In other words, some operation produce tables to start with while other operations take and transform these tables. The execution plan is organized into a sequence of these transformations.
 
 \begin{definition}[the execution plan operations] $ $
   % \textbf{The execution plan operations} are the following:
@@ -753,7 +761,7 @@ We have distilled five operations from Neo4j and RedisGraph implementations that
       \end{center}
 
       \item \textbf{\texttt{Into}}.
-      This mode is very similar to the previous one but in this case the records in the input table must already contain the destination modes. The operation then traverse all the edges between the source and destination nodes and adds the traversed edges to the output table.
+      This mode is very similar to the previous one but in this case the records in the input table must already contain the destination modes. The operation then traverses all the edges between the source and destination nodes and adds the traversed edges to the output table.
 
       Recall the example graph on Figure~\ref{fig:property-graph} again.
       An example application of the \texttt{Expand} operation in the mode \texttt{Into} can act as follows (the types of columns are omitted for brevity):
@@ -916,7 +924,7 @@ The last example to consider is the \texttt{Expand} operation. It has the follow
 \end{figure}
 
 \begin{definition}
-  \textbf{An execution plan} is a finite sequence of operations and is formally defined as a tree with operations in the nodes For example consider Figure~\ref{fig:example-execution-plan}. The direction of arrows shows the order of operations and the flow of intermidiate tables.
+  \textbf{An execution plan} is a chain of operations. For example consider Figure~\ref{fig:example-execution-plan}. The direction of arrows shows the order of operations and the flow of intermidiate tables.
 
   The node of an operation in the plan may or may not have a child depending on whether the operation takes an input table or not. The operation nodes that do not have children are called \textbf{leaf operations}. For now, we have only one leaf operation which is \texttt{ScanVertices}.
 \end{definition}
@@ -941,16 +949,6 @@ Note that this evaluation function is partial because the operation evalution fu
     $$ T(p) = T(p') \mid_E $$
 \end{definition}
 
-We may now state an important connection between the type of a plan and the type of the resulting table. Unsurprisingly, they turn out to be equal.
-
-\begin{theorem}
-  If $p$ is a plan and $[p]_G$ is defined then $T(p) = T([p]_G)$.
-\end{theorem}
-\begin{proof}
-  By straightforward induction on the structure of the plan and the type axioms for the operations.
-\end{proof}
-
-This theorem means that we can easily find out the type of the resulting table without the need to evaluate the plan.
 
 \begin{definition}
   In a similar manner, we define \textbf{the well-formedness of a plan}. A plan is well-formed if the inputs to each operation satisfy the well-formedness conditions described in the operation definition but instead of using the type of the input table we use the type of the subplan, we have just defined.
@@ -964,6 +962,18 @@ This theorem means that we can easily find out the type of the resulting table w
 \end{proof}
 
 With this theorem we can easily show that the evaluation of a particular plan succeeds by simply looking at its structure.
+
+We may now state an important connection between the type of a plan and the type of the resulting table. Unsurprisingly, they turn out to be equal.
+
+\begin{theorem}
+  If $p$ is a well-formed plan and $[p]_G$ is defined then
+  $$T(p) = T([p]_G)$$
+\end{theorem}
+\begin{proof}
+  By straightforward induction on the structure of the plan and the type axioms for the operations.
+\end{proof}
+
+This theorem means that we can easily find out the type of the resulting table without the need to evaluate the plan.
 
 \subsection{The translation from queries to execution plans}
 
@@ -1006,12 +1016,10 @@ To the point where we process the second edge pattern, both \texttt{u} and \text
     \item If the path pattern is of the form $\patternhop{\pi}{\pi_e}{\pi_v}$ where $\pi$ is a path pattern where the name of the last vertex pattern is $n_u$; $\pi_e$ is an edge pattern that has name $n_e$, direction $d$ and label $l_e$, and $\pi_v$ is a vertex pattern that has name $n_v$ and label $l_v$; then the execution plan for $\patternhop{\pi}{\pi_e}{\pi_v}$ is \texttt{Expand}($m$, $n_u$, $n_e$, $n_v$) followed by \texttt{FilterEdgesByLabel}($n_e$, $l_e$) and \texttt{FilterVerticesByLabel}($n_v$, $l_v$). 
     If any of the labels is not specified, the corresponding filtering operation is not included. The mode $m$ of the \texttt{Expand} operation is determined based on whether $n_v$ is already present or not. This can be checked by looking at $T_F(\pi)$, the full type of the pattern.
   \end{itemize} 
-
-  This operation also checks that inputs are well-formed and fails if they are not. In particular, before applying the \texttt{Expand} operation, the algorithm checks that $n_e$ is not already present in the context.
 \end{definition}
 
 \begin{definition}
-  \textbf{The translation algorithm} itself just runs the auxilliary algorithm and appends the \texttt{ReturnAll} operation to the plan.
+  \textbf{The translation algorithm} itself just runs the auxilliary algorithm $P'$ and appends the \texttt{ReturnAll} operation to the plan.
   Let's denote the plan for a path pattern $\pi$ by $P(\pi)$.
 \end{definition}
 
@@ -1021,6 +1029,7 @@ We can now show lots of important properties using the machinery we developed ea
   \label{lem:neo4j-translation-type}
   If $\pi$ is well-formed then
   $$T(P'(\pi)) = T_F(\pi)$$
+  In other words, the type of the auxilliary plan is the full type of the path pattern (remember, $F$ stands for \textit{full} matching mode)
 \end{lemma}
 \begin{proof}
   By straightforward induction on the structure of the pattern.
@@ -1038,7 +1047,7 @@ That is, the \texttt{Expand} operation doesn't differentiate between implicit an
 \end{proof}
 
 \begin{lemma} If $\pi$ is well-formed then
-  $$[P'(\pi)]_G = \{ r \mid \exists p : \pi \models_F (p, r) \}$$
+  $$[P'(\pi)]_G = \{ r \mid \exists p : (G, p, r) \models_F \pi \}$$
 \end{lemma}
 \begin{proof}
   By straightforward induction on the structure of the pattern.
@@ -1047,13 +1056,13 @@ That is, the \texttt{Expand} operation doesn't differentiate between implicit an
 We again use the full matching mode because all the names are necessary for this translation algorithm to compute the result. As we already mentioned, we could have weaken the pattern-matching predicate to work only with explicit names leaving the behavior for implicit names unspecified. However, this would make it impossible to prove the following theorem because the \texttt{Expand} operation would refer to and rely on the unspecified data which is from the standpoint of rigourous proofs is absolutely arbitrary.
 
 \begin{theorem} If $\pi$ is well-formed then
-  $$[P(\pi)]_G = \{ r \mid \exists p : \pi \models_E (p, r) \}$$
+  $$[P(\pi)]_G = \{ r \mid \exists p : (G, p, r) \models_E \pi \}$$
 \end{theorem}
 \begin{proof} From the specification of \texttt{ReturnAll} and the previous theorem we know:
-  $$[P(\pi)]_G = \{ r|_E \mid r \in [P'(\pi)]_G \} = \{ r|_E \mid \exists p : \pi \models_F (p, r) \} $$
+  $$[P(\pi)]_G = \{ r|_E \mid r \in [P'(\pi)]_G \} = \{ r|_E \mid \exists p : (G, p, r) \models_F \pi \} $$
   So we need to prove that:
-  $$ \{ r|_E \mid \exists p : \pi \models_F (p, r) \} = \{ r \mid \exists p : \pi \models_E (p, r) \} $$
-  By the theorem~\ref{thm:matching-mode-narrow} we already know that if $\pi \models_F (p, r)$ then $\pi \models_E (p, r|_E)$. Moreover, by the theorem~\ref{thm:matching-mode-widen} we know that if $\pi \models_E (p, r')$ then there is $r$ such that $r' = r|_E$ and $\pi \models_F (p, r)$. So we can conclude that the equality holds.
+  $$ \{ r|_E \mid \exists p : (G, p, r) \models_F \pi \} = \{ r \mid \exists p : (G, p, r) \models_E \pi \} $$
+  By the theorem~\ref{thm:matching-mode-narrow} we already know that if $(G, p, r) \models_F \pi$ then $(G, p, r |_E) \models_E \pi$. Moreover, by the theorem~\ref{thm:matching-mode-widen} we know that if $(G, p, r') \models_E \pi$ then there is $r$ such that $r' = r|_E$ and $(G, p, r) \models_F \pi$. So we can conclude that the equality holds.
 \end{proof}
 
 The last theorem is the most important one because it shows that the translation algorithm does exactly what we want from it: it finds all the paths that match the pattern and returns only the names that were explicitly specified in the pattern.
