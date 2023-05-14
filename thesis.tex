@@ -32,6 +32,7 @@
 \usepackage{extarrows}
 \usepackage[bottom]{footmisc}
 \usepackage[many]{tcolorbox}
+\usepackage{syntax}
 % \usepackage[table]{xcolor}
 \addbibresource{thesis.bib}
 
@@ -82,9 +83,14 @@ As the name suggests, graph databases represent data using graphs. While the ide
 
 However, unlike relational databases world with its SQL, there is no standardized language for these systems. In response, the graph database community has developed Graph Query Language (GQL) which is currently being standardized. Standardization is essential for a query language because it simplifies the databases development process and makes it easier to create applications that can work across different graph database systems. With a standardized language like GQL, developers can write queries in a familiar syntax that can be easily understood and executed by different graph databases, promoting interoperability and making it easier to work with data stored in different systems.
 
-Nevertheless, standardizing GQL is challenging due to its complexity and constant expansion, and can result in errors and ambiguities even after thorough reviews as the experience with another well-known standardized language has shown~\cite{cpp-std-verified}. Furthermore, given the declarative nature of GQL, the database needs to determine how to fetch the data described in the query, leading to a greater number of possible implementations. The very existence of a realistic implementation can be questioned in this case.
+Nevertheless, standardizing GQL is challenging due to its complexity and constant expansion, and can result in errors and ambiguities even after thorough reviews as the experience with another well-known standardized language has shown~\cite{cpp-std-verified}.
 
 There has been an attempt to mathematically formalize the standard~\cite{GQL-formalized-on-paper} which we used as a reference, however, this attempt is still pen-and-paper and, as a result, is prone to errors. In fact, we have identified some errors in the aforementioned paper.
+
+
+Furthermore, given the declarative nature of GQL, the database needs to determine how to fetch the data described in the query, leading to a greater number of possible implementations. The very existence of a realistic implementation can be questioned in this case.
+
+In fact, graph databases translate a query into an intermediate representation called \textbf{execution plan}, which is just a chain of operations that need to be performed in order to evaluate the query. These operations inspect the graph and produce intermediate results that are later transformed by subsequent operations. This solution draws inspiration from relational databases world, where such approach has proven to be successful. Moreover, the translation process itself is complex and contains a lot of subtle details which are easy to overlook.
 
 % TODO: Describe the errors in the paper.
 
@@ -120,7 +126,31 @@ There has been a successful attempt to mechanize a subset of the SQL standard~\c
 
 % To achieve that goal, we have chosen the Coq proof assistant which is basically a programming language that allows for writing and reasoning about programs.
 
-\section{GQL and graph databases in a nutshell}
+\section{Goals and objectives}
+
+Let us state our goal again. We want to mechanize the core subset of the GQL standard and its two main implementations in Coq.
+
+To achieve this goal, we have set the following objectives:
+\begin{itemize}
+  \item \textbf{Mechanize the specification of the core subset of the GQL standard}:
+  
+  First, we want to write a specification for some subset of GQL. We want to define it the way that allows us to abstract from the implementation details of the query evaluation and reason about high-level properties.
+
+  \item \textbf{Mechanize the specification of the execution plan}:
+  
+  Secondly, we want to specify some key operations of execution plans that are necessary to evaluate our queries. From this specification we want the same properties as from the specification of GQL.
+
+  \item \textbf{Implement and prove the correctness of the translation of the queries}:
+  
+  The next objective is to define the translation from queries to execution plans and show that it is correct. Correctness in this case means that, according to the specification of the execution plan, the evaluation of translated queries satisfies the specification of GQL.
+
+  \item \textbf{Provide an example implementation of the execution plan evaluation}:
+  
+  It is also very important to implement those operations to prove that the specification we provided is realistic. We don't aim for a performant or a production-ready implementation, however, we want to capture the way RedisGraph optimizes its operations using linear algebra.
+
+\end{itemize}
+
+\section{Related work}
 
 In this section we describe the basics of GQL and graph databases. For formal definitions we refer the reader to section~\ref{sec:technical-details}. We assume some familiarity with SQL and relational databases.
 
@@ -139,21 +169,6 @@ Graph databases use so-called property graphs as an underlying data model. \text
 \end{figure}
 
 For instance, in figure~\ref{fig:property-graph} there are two nodes labelled ``Person'' and ``Company'' with identifiers 0 and 1, respectively. The company has a property ``name'' with a value of ``JB'', and there is an edge from the person to the company labelled ``WORKS\_FOR'' with id of 0. This edge also has a property ``since'' with a value of ``2022''.
-
-\subsection{Values}
-\label{section:intro-values}
-
-In the subset of GQL we are interested in there are the following types of values:
-\begin{itemize}
-  \item \textbf{Graph object types.} Values of these types are vertex and edge identifiers.
-  \item \textbf{Base types.} Values of these types are floating point numbers, integers and strings. 
-  \item \textbf{Boolean type.} Values of this type are either \texttt{true}, \texttt{false} or \texttt{unknown}.
-  % TODO: explain why we have `unknown` here.
-\end{itemize}
-
-Values of all of these types can be used in properties of graph objects.
-
-You might be confused by the fact that boolean type includes a third value but this is common in databases world and GQL is not an exception. Discussing the intricacies of three-valued logic is out of scope of this work. For now, it is enough to know that we have all the usual basic types in GQL.
 
 \subsection{Binding tables}
 \label{section:intro-binding-tables}
@@ -244,101 +259,77 @@ Like relational databases, graph databases translate a query into an intermediat
 
 Moreover, the optimization step of the query evaluation is usually performed on the execution plan of the query.
 
-\begin{table}[t]
-  \centering
-  
-  \begin{center}
-    % \begin{tabular}{ |p{4cm}|p{11.5cm}|  }
-    \begin{tabular}{ |c|l|  }
-      \hline
-      Name & \multicolumn{1}{c|}{Description} \\
-      \hline
-      \texttt{Expand(All)} & Traverses all edges from a given node. \\
-      \texttt{Expand(Into)} & Traverses all edges between two nodes. \\
-      \texttt{AllNodesScan} & Scans all nodes in the graph. \\
-      \texttt{Filter} & Filters out rows that do not satisfy a given predicate. \\
-      \texttt{ProduceResults} & Cleans up auxillary information. \\
-      \hline
-    \end{tabular}
-  \end{center}
-  \caption{The most important execution plan operations for Neo4j}
-  \label{tab:execution-plan-operations-summary-Neo4j}
-\end{table}
-\begin{table}[t]
-  \begin{center}
-    % \begin{tabular}{ |p{4cm}|p{11.5cm}|  }
-    \begin{tabular}{ |c|l|  }
-      \hline
-      Name & \multicolumn{1}{c|}{Description} \\
-      \hline
-      \texttt{Traverse} & Traverses paths that match the given pattern slice. \\
-      \texttt{ScanNodes} & Scans all nodes in the graph. \\
-      \texttt{Filter} & Filters out rows that do not satisfy a given predicate. \\
-      \texttt{ReturnAll} & Cleans up auxillary information. \\
-      \hline
-    \end{tabular}
-  \end{center}
-  \caption{The most important execution plan operations for RedisGraph}
-  \label{tab:execution-plan-operations-summary-RedisGraph}
-\end{table}
+Our reference databases, Neo4j and RedisGraph, use different sets of operations to evaluate queries. However, the general idea is the same.
 
-Our reference databases, Neo4j and RedisGraph, use different sets of operations to evaluate queries. However, the general idea is the same. Tables~\ref{tab:execution-plan-operations-summary-Neo4j} and~\ref{tab:execution-plan-operations-summary-RedisGraph} show the most important operations for both databases.
+\begin{figure}
+  \include{img/intro-execution-plan.tex}
+  \caption{The Neo4j execution plan for the example path pattern}
+  \label{fig:intro-execution-plan}
+\end{figure}
 
-\todo{an example of translation}
-
-\section{Goals and objectives}
-
-Let us state our goal again. We want to mechanize the core subset of the GQL standard and its two main implementations in Coq.
-
-To achieve this goal, we have set the following objectives:
-\begin{itemize}
-  \item \textbf{Mechanize the specification of the core subset of the GQL standard}:
-  
-  First, we want to write a specification for some subset of GQL. Our focus has been on read queries but GQL also allows for modifications. We have simplified the language by stripping away almost everything except path patterns. Our methodology is to start with a simple subset of the language and then expand it.
-
-  We decided to provide the specification via denotational semantics. In other words, we describe which properties the resulting binding table should satisfy. This approach is very convenient for us because it allows us to write a specification in a very high-level way and treat the actual implementation of the specification later. However, this approach requires us to show that the specification is complete in some sense. We do this by proving that any two implementations of the specification are equivalent, i. e. for the same queries they produce equal binding tables up to permutations and repetitions of records.
-
-  \item \textbf{Mechanize the specification of the execution plan}:
-  
-  Secondly, we want to specify some key operations of execution plans that are necessary to evaluate our queries. We decided to provide this specification via denotational semantics too. To achieve this, we have identified the crucial operations for Neo4j and RedisGraph and merged the operations that are common to both of them. Additionally, we have simplified the specification by omitting some details that are not relevant to our purposes.
-
-  \item \textbf{Implement and prove the correctness of the translation of the queries}:
-  
-  The next objective is to define the translation from queries to execution plans and show that it is correct. Correctness in this case means that, according to the specification of the execution plan, the evaluation of translated queries satisfies the specification of GQL.
-
-  \todo{the picture that explains everything}
-
-  % TODO: Show the scheme that explains what the correctness is.
-
-  Neo4j and RedisGraph use different sets of operations and, thus, they translate queries differently. Therefore, we actually have to write two translators and prove their correctness separately.
-
-  \item \textbf{Provide an example implementation of the execution plan evaluation}:
-  
-  It is also very important to implement those operations to prove that the specification we provided is realistic.
-  
-  Implementing almost all of the operations is pretty straightforward because they are simple enough. It is worth noting that we mostly aim to provide an implementation that just works. We are not trying to optimize the implementation for performance as it is out of the scope of this project.
-
-  However, one RedisGraph-specific operation is much more complex. Even though, we could implement it in a similar way as any other: making it just work, we decided that we want to capture the way RedisGraph implements it: using matrices. 
-  
-  % It has to translate a pattern slice into a complex matrix expression, evaluate the expression and iterate over the resulting matrix producing the resulting table. 
-
-\end{itemize}
+Consider an example query with a pattern \texttt{(u)-[e]->(v:A)}. Figure~\ref{fig:intro-execution-plan} shows the execution plan that Neo4j might build for it. The evaluation of the query starts from fetching all vertices from the graph and adding them to the resulting table under name $u$. Then, for each vertex $u$ in the table, Neo4j fetches all outgoing edges from $u$ and adds them to the table under name $e$ alongside with the destination nodes of these edges under name $v$. After that, for each vertex under name $v$ it checks that this vertex has label $A$ and discards the records which do not satisfy the criteria. Finally, it returns the resulting table cleaning up all the auxilliary information but there is none in this case.
 
 \section{The specification of GQL semantics and key details of query evaluation}
 \label{sec:technical-details}
 
-In this section we describe how we have achieved each of the objectives. We show the concrete definitions and theorems that we have proved as well as the ideas behind them.
+In this section we describe how we have achieved each of the stated objectives. We show the concrete definitions and theorems that we have proved as well as the ideas behind them.
 
 \subsection{The specification of the core subset of GQL}
 
-We start with the description of the core subset of GQL. First, we formally describe the concrete syntax of the subset. Then we formally specify its abstract syntax and semantics. Finally, we show that this specification is complete.
+We start with the description of the core subset of GQL. First, we formally describe the concrete syntax of the subset. Then we formally specify its abstract syntax and semantics.
+
+We decided to provide the specification via denotational semantics. In other words, we describe which properties the resulting binding table should satisfy. This approach is very convenient for us because it allows us to write a specification in a very high-level way and treat the actual implementation of the specification later. However, this approach requires us to show that the specification is complete in some sense. We do this by proving that any two implementations of the specification are equivalent, i. e. for the same queries they produce same results.
 
 Our specification closely follows the aforementioned formalization~\cite{GQL-formalized-on-paper}. However, we have introduced some new concepts and changed some definitions to make them more convenient for us. For example, we introduced the notion of types that allowed us to state well-formedness conditions in a simple way. We also introduced implicit names to model the query normalization which our reference databases perform. Moreover, we introduced matching modes to control which names occur in the resulting table. This allowed us to reason about the auxilliary information that graph databases use during query evaluation.
 
-\subsubsection{The concrete syntax of the core subset of GQL}
+\subsubsection{The concrete syntax of the subset}
 \label{sec:GQL-syntax}
 
-\todo{the EBNF grammar}
+\begin{figure}
+  \newcommand*{\myfont}{\fontfamily{lmss}\selectfont}
+  \newcommand*{\myfonttt}{\fontfamily{lmtt}\selectfont}
+  \renewcommand{\syntleft}{\myfont\color{black} }
+  \renewcommand{\syntright}{}
+  \renewcommand{\litleft}{\myfonttt\bfseries\color{red}}
+  \renewcommand{\litright}{}
+  \setlength{\grammarparsep}{5pt plus 1pt minus 1pt} % increase separation between rules
+  \setlength{\grammarindent}{10em} % increase separation between LHS/RHS 
+  \begin{tcolorbox}[colframe=gray!50!white,colback=gray!5!white,arc=0pt]
+    \begin{grammar}
+
+      <path-pattern> ::= <vertex-pattern> (<edge-pattern> <vertex-pattern>)*
+
+      <vertex-pattern> ::= `(' <pattern-body> `)'
+
+      <edge-pattern> ::= `-[' <pattern-body> `]->'
+      \alt `<-[' <pattern-body> `]-'
+      \alt `-[' <pattern-body> `]-'
+
+      <pattern-body> ::= <name>? <label-pattern>? <properties-pattern>?
+
+      <label-pattern> ::= `:' <label>
+
+      <properties-pattern> ::= `\{' <property> (`,' <property>)* `\}'
+
+      <property> ::= <key> `:' <value>
+
+      <query> ::= `MATCH' <path-pattern> \\ `RETURN *'
+      
+    \end{grammar}
+  \end{tcolorbox}
+  \caption{The grammar for concrete syntax of the core subset of GQL}
+  \label{fig:GQL-grammar}
+\end{figure}
+
+The concrete syntax of the core subset of GQL is given by the grammar in Figure~\ref{fig:GQL-grammar}. We use the following conventions:
+\begin{itemize}
+  \item \textbf{Non-terminals} are written in black normal font.
+  \item \textbf{Terminals} are written in red type-writer font.
+\end{itemize}
+
+We have chosen to only formalize the \texttt{MATCH}-clause in its simplest but still meaningful form. The semantics of this subset has been informally discussed in the introduction.
+
+In the next sections, we will define the abstract syntax of this subset, its semantics and underlying mathematical objects.
 
 \subsubsection{Values}
 \label{sec:GQL-values}
@@ -352,6 +343,8 @@ Our specification closely follows the aforementioned formalization~\cite{GQL-for
   \end{itemize}
 \end{definition}
 
+You might be confused by the presence of a third value in the boolean type but three-valued logic is a norm in databases world. However, carefully defining the semantics of \texttt{unknown} and its interaction with values of other types is out of the scope of this project. We will only use graph object types. Other types are introduced for the sake of building examples.
+
 \begin{definition}
   Given the value $v$ we can define the ``type of'' operator: $\mathtt{T}(v)$. It returns the type of the value $v$. For example, if we use ``1'' as an integer, then $\mathtt{T}(1) = \mathtt{int}$.
 \end{definition}
@@ -362,7 +355,7 @@ Our specification closely follows the aforementioned formalization~\cite{GQL-for
 
 \subsubsection{Property graphs}
 
-We start with the formal definition of property graphs. In short, a property graph is a directed labelled multigraph where each vertex or edge can store a possibly empty set of property-value pairs. 
+As has already been said, a property graph is a directed labelled multigraph where each vertex or edge can store a possibly empty set of property-value pairs. In this section we formally define property graphs and their components.
 
 \begin{definition}
   To begin we need to define some auxilliary terms: 
@@ -374,6 +367,7 @@ We start with the formal definition of property graphs. In short, a property gra
 \end{definition}
 
 \begin{definition}[Property graphs]
+  \label{def:property-graph}
   We have chosen the following formal representation of property graphs:
   \begin{itemize}
     \item \textbf{Vertices and edges} are represented as finite sets of identifiers. We denote a set of vertices and a set of edges by $V$ and $E$, respectively. These sets can contain any numbers, however, we want these sets to be as close to $\{1 \dots |V|\}$ and $\{1 \dots |E|\}$ as possible. It is because we want to use these sets as indices in matrices. This way we can minimize the size of the matrices. Requiring that the sets are exactly of this form is, in practice, impossible if we take into account potential updates and deletions of vertices and edges.
@@ -474,9 +468,28 @@ Recall the example query from section~\ref{section:intro-GQL}. As we discussed i
   (p:Person)-[e:WORKS_FOR]->(c:Company {"name": "JB"})
 \end{verbatim}
 
-Here \verb+(p:Person)+ and \verb+(c:Company {"name": "JB"})+ are \textbf{vertex patterns} while \verb+-[e:WORKS_FOR]->+ is \textbf{an edge pattern}. We have discussed the exact syntax earlier.
+Here \verb+(p:Person)+ and \verb+(c:Company {"name": "JB"})+ are vertex patterns in their concrete syntax while \verb+-[e:WORKS_FOR]->+ is an edge pattern. We have discussed the exact syntax earlier.
 
 % \texttt{p}, \texttt{e}, \texttt{c} are vertex and edge pattern names. They are used to refer to the corresponding graph objects in the rest of the query. \texttt{Person} and \texttt{Company} are vertex labels. \texttt{WORKS\_FOR} is an edge label. \texttt{"name": "JB"} is \textbf{a properties pattern}. It says that the company must have a property ``name'' with a value of ``JB''.
+
+\begin{definition} Mathematically (i.e. in abstract syntax) we define these as follows:
+  \begin{itemize}
+    \item \textbf{Vertex pattern} $\pi_v$ is an object which has a name $n$, an optional label $l$ and, possibly empty, set of properties $p$. We access them using the following operators similar to the ones we used in definition~\ref{def:property-graph}:
+    \begin{itemize}
+      \item $\alpha(\pi_v) := n$;
+      \item $\lambda(\pi_v) := l$ if $l$ is present, otherwise undefined;
+      \item $\phi(\pi_v) := p$ which can be empty.
+    \end{itemize}
+
+    \item Analogously, \textbf{edge pattern} $\pi_e$ is an object which has a name $n$, an optional label $l$, possibly empty, set of properties $p$ and a direction $d$. We access them using the following operators:
+    \begin{itemize}
+      \item $\alpha(\pi_e) := n$;
+      \item $\lambda(\pi_e) := l$ if $l$ is present, otherwise undefined;
+      \item $\phi(\pi_e) := p$ which can be empty;
+      \item $\delta(\pi_e) := d$ where $d$ is either $\rightarrow$, $\leftarrow$ or $\leftrightarrow$.
+    \end{itemize}
+  \end{itemize}
+\end{definition}
 
 % \begin{definition}
 %   \textbf{A vertex pattern} is denoted by $(n : l \, \{p_1: v_1, \ldots, p_k: v_k\})$ and \textbf{an edge pattern} is denoted by $\texttt{-[}n : l \; \{p_1: v_1, \ldots, p_k: v_k\}\texttt{]->}$ where $n$ is a name, $l$ is a label, and $p_i$ are property keys and $v_i$ are values. $(p_i, v_i)$ pairs consitute the properties pattern.
@@ -522,6 +535,8 @@ Therefore, graph databases perform \textit{pattern normalization} before the act
 
 This way, even though, the names can be omitted in the original query, they are always present in the normalized query. So we can require that \textit{all} vertex and edge patterns have names in our specification, even though, some of them might be implicit.
 
+For example, if $\pi_v$ was \texttt{(a: Person)} in concrete syntax then $\alpha(\pi_v)$ is an explicit name ``a''. If $\pi_v$ was \texttt{(: Person)} then $\alpha(\pi_v)$ is an implicit name which might be ``anon\_0'', for instance.
+
 \subsubsection{The pattern-matching predicate and matching modes}
 
 We can now informally define the pattern-matching predicate as follows:
@@ -530,15 +545,16 @@ We can now informally define the pattern-matching predicate as follows:
    A path $p$ in a graph $G$ with a record $r$ \textbf{matches} a pattern $\pi$ if and only if: $p$ matches $\pi$ and $r$ represents $p$. This is denoted as $(G, p, r) \models \pi$.
 \end{definition}
 
-The idea behind this definition is the following: it is convinient to define the pattern-matching using real paths in the graph. However, the output of a query is not a set of paths but a binding table. Therefore, we need to represent paths with records.
-
 Informally defining what it means for a path to match a pattern is easy: the structure of the path must match the structure of the pattern, and vertices and edges must satisfy the requirements of the corresponding vertex and edge patterns. More concretely, the directions of the edges must match and vertices and edges must have the required labels and properties.
 
-Representing paths with records is pretty straightforward too: an edge or a vertex of the path must appear in the record with the name specified in the corresponding vertex or edge pattern.
+The idea behind this definition of pattern-matching is the following: it is convinient to define the pattern-matching using real paths in the graph. However, the output of a query is not a set of paths but a binding table. Therefore, we need to represent paths with records.
+
+Representing paths with records is pretty straightforward too: an element of the path must appear in the record under the name that is specified in the corresponding vertex or edge pattern.
 
 However, the path structure contains the full information about the path in the graph while in the resulting table we might not need all of it. For example, if the name in the original query was omitted (i. e. the name appeared after normalization and, thus, is implicit), the corresponding column in the resulting table should not appear. This is why we introduce the notion of the matching mode. It controls which names should appear in records.
 
 \begin{definition}
+  \label{def:matching-modes}
   We have three \textbf{matching modes}:
   \begin{itemize}
     \item The \textit{full} mode means that all names should appear in the resulting records.
@@ -555,15 +571,84 @@ This way, we can use, for example, the full mode during the query evaluation but
   where $m$ is either $F$, $E$ or $M$ standing for full, explicit and mixed matching modes respectively.
 \end{definition}
 
+Let's introduce new record updating notations that take into account the matching mode and formally capture definition \ref{def:matching-modes}.
+
+\begin{definition}
+  We introduce two new record updating notations where $m$ is the matching mode ($F$, $E$ or $M$):
+  \begin{itemize}
+    \item $(n_v \mapsto_m v)$
+    \item $((n_v, n_e) \mapsto_m (v, e); r)$
+  \end{itemize}
+
+  For the full mode, they are the same as the previous update notations:
+  \begin{itemize}
+    \item $(n_v \mapsto_F v) = (n_v \mapsto v)$
+    \item $((n_v, n_e) \mapsto_F (v, e); r) = (n_v \mapsto v; n_e \mapsto e; r)$
+  \end{itemize}
+
+  For the explicit mode, the record is updated only if the name is explicit:
+  \begin{itemize}
+    \item $(n_v \mapsto_E v) =
+      \begin{cases}
+        (n_v \mapsto v) & \text{if $n_v$ is explicit} \\
+        () & \text{otherwise}
+      \end{cases}$
+    \item $((n_v, n_e) \mapsto_E (v, e); r) = 
+      \begin{cases}
+        (n_v \mapsto v; n_e \mapsto e; r) \\ \quad \text{if $n_v$ and $n_e$ are both explicit} \\
+        (n_v \mapsto v; r) \\ \quad \text{if $n_v$ is explicit and $n_e$ is implicit} \\
+        (n_e \mapsto e; r) \\ \quad \text{if $n_v$ is implicit and $n_e$ is explicit} \\
+        r \\ \quad \text{if $n_v$ and $n_e$ are both implicit}
+      \end{cases}$
+  \end{itemize}
+
+  For the mixed mode, the record is updated only if the name is the first one, or the name is explicit, or the name is implicit and the previous name was explicit:
+  \begin{itemize}
+    \item $(n_v \mapsto_M v) = (n_v \mapsto v)$
+    \item $((n_v, n_e) \mapsto_M (v, e); r) = 
+      \begin{cases}
+        (n_v \mapsto v; n_e \mapsto e; r) \\ \quad \text{if $n_e$ is explicit} \\
+        (n_v \mapsto v; r) \\ \quad \text{if $n_v$ is explicit and $n_e$ is implicit} \\
+        r \\ \quad \text{if $n_v$ and $n_e$ are both implicit}
+      \end{cases}$
+  \end{itemize}
+
+  Similarly, we define such notations to update types.
+\end{definition}
+
+We can now formally define the pattern-matching predicate.
+\begin{definition}
+  It is defined inductively by mirroring the structure of the pattern:
+  \begin{itemize}
+    \item If
+      \begin{itemize}
+        \item $\pi_v$ is a vertex pattern and $v$ is a vertex in $G$
+        \item $\lambda (\pi_v)$ is undefined or $\lambda (\pi_v) \in \lambda_V(v)$
+        \item $\phi (\pi_v) \subset \phi_V (v)$
+      \end{itemize}
+      then $(G, \pathstart{v}, (\alpha (\pi_v) \mapsto_m v)) \models_m \patternstart{\pi_v}$.
+    \item If
+      \begin{itemize}
+        \item $\patternhop{\pi}{\pi_e}{\pi_v}$ is a pattern and $\pathhop{p}{e}{v}$ is a path in $G$
+        \item $(G, p, r) \models_m \pi$
+        \item $\lambda (\pi_v)$ is undefined or $\lambda (\pi_v) \in \lambda_V(v)$
+        \item $\lambda (\pi_e)$ is undefined or $\lambda (\pi_e) = \lambda_E(v)$
+        \item $\phi (\pi_v) \subset \phi_V (v)$
+        \item $\phi (\pi_e) \subset \phi_E (e)$
+      \end{itemize}
+      then $(G, \, \pathhop{p}{e}{v}, \,((\alpha (\pi_v), \alpha (\pi_e)) \mapsto_m (v, e); \, r)) \models_m \patternhop{\pi}{\pi_e}{\pi_v}$.
+  \end{itemize}
+  
+\end{definition}
+
 We could weaken the definition of the pattern-matching predicate by relaxing such strict control of implicit names but this definition turned out to be very convinient during the rigorous proofs because having a stronger predicate means having stronger induction hypotheses.
 
 \begin{definition}
   Using the matching mode $m$ we can define \textbf{the type of a pattern} $\pi$, denoted as $T_m(\pi)$, inductively by mirroring the structure of the pattern:
   \begin{itemize}
-    \item If $\patternstart{\pi_v}$ is a pattern, $n_v$ is the name of $\pi_v$ and it should appear in the result according to the matching mode $m$ then $T_m \patternstart{\pi_v} = (n_v \mapsto \texttt{vertex})$. Otherwise, $T_m \patternstart{\pi_v}$ is empty.
-    \item If $\patternhop{\pi}{\pi_e}{\pi_v}$ is a pattern, $n_v$ and $n_e$ are the names of $\pi_v$ and $\pi_e$ respectively, and they should appear in the result according to the matching mode $m$ then
-    $$T_m(\patternhop{\pi}{\pi_e}{\pi_v}) = (n_v \mapsto \texttt{vertex}; n_e \mapsto \texttt{edge}; T_m(\pi))$$ 
-    If any of these names should not appear in the result then we don't add it to the type.
+    \item If $\patternstart{\pi_v}$ is a pattern then $T_m \patternstart{\pi_v} = (\alpha (\pi_v) \mapsto_m \texttt{vertex})$.
+    \item If $\patternhop{\pi}{\pi_e}{\pi_v}$ is a pattern then
+    $$ T_m(\patternhop{\pi}{\pi_e}{\pi_v}) = ((\alpha (\pi_v), \alpha (\pi_e)) \mapsto_m (\texttt{vertex}, \texttt{edge}); \; T_m(\pi)) $$
   \end{itemize}
 \end{definition}
 
@@ -716,7 +801,7 @@ We can also show that resulting binding table has the desired type:
 
 \subsection{The specification of the execution plan}
 
-In this section we describe which operation we have chosen for our purposes and how we have specified them.
+In this section we describe which operations we have chosen for our purposes and how we have specified them. We decided to provide this specification via denotational semantics too. As has already been discussed, it allows us to abstract away from the implementation details and focus on the high-level properties of the operations.
 
 \subsubsection{The operations}
 
@@ -725,15 +810,21 @@ We have distilled five operations from Neo4j and RedisGraph implementations that
 \begin{definition}[the execution plan operations] $ $
   % \textbf{The execution plan operations} are the following:
   \begin{itemize}
-    \item \textbf{\texttt{ScanVertices}}. This is the operation from which the evaluation of any query begins. It retrieves all the vertices from the graph and returns a table with a single column containing all the vertices. This operation takes one parameter which is \textit{the name of the column}. 
+    \item $\texttt{ScanVertices}(n)$. This is the operation from which the evaluation of any query begins. It retrieves all the vertices from the graph and returns a table with a single column named $n$ containing all the vertices.
 
-    \item \textbf{\texttt{FilterByLabel}}. This is the operation which is used to implement matching the label patterns in path patterns.
-    It filters the input table by a label. The record will make into the output table iff the corresponding graph object (a vertex or an edge) has the label. This operation takes three parameters: \textit{the name of the column} to source graph objects, \textit{the label} to filter by and \textit{the filtering mode} which specifies whether we filter vertices or edges.
+    \item $\texttt{FilterByLabel}(m, n, l)$. This is the operation which is used to implement matching the label patterns in path patterns.
+    It filters the input table by a label $l$. A record from the input table will make into the output table iff the graph object (a vertex or an edge) in column $n$ has the label $l$. $m$ here is the mode of the operation. It can be either \texttt{Vertices} or \texttt{Edges} to specify whether the operation should filter vertices or edges.
 
-    \item \textbf{\texttt{Expand}}. This operation is the workhorse of Neo4j's query evaluation. Briefly, it traverses one edge from each given node. More concretely, this operation performes in two modes:
+    If we know the exact mode we can use the following notations:
+    \begin{itemize}
+      \item $\texttt{FilterVerticesByLabel}(n, l)$
+      \item $\texttt{FilterEdgesByLabel}(n, l)$
+    \end{itemize}
+
+    \item $\texttt{Expand}(m, d, n_{\mathrm{from}}, n_{\mathrm{edge}}, n_{\mathrm{to}})$. This operation is the workhorse of \\ Neo4j's query evaluation. Briefly, it traverses one edge from each given node. More concretely, this operation performes in two modes specified by $m$:
     \begin{itemize}
       \item \textbf{\texttt{All}}.
-      The operation takes each record from the input table, takes the source node from the record and for each edge going in the specified direction from the node adds to the output table a record which is extended from the original record by appending the destination node and the traversed edge. The user is required to specify the name of the column containing the source nodes, the name of the column that will contain the edges and the name of the column that will contain the destination nodes.
+      The operation takes each record from the input table, takes the source node under name $n_{\mathrm{from}}$ from the record and for each edge going in the direction $d$ from the node adds to the output table a record which is extended from the original record by appending the destination node under name $n_{\mathrm{to}}$ and the traversed edge under name $n_{\mathrm{edge}}$.
 
       Recall the example graph on Figure~\ref{fig:property-graph}. If we have a table with a single column and a single record containing the node 0 then the application of the \texttt{Expand} operation with the \texttt{All} mode will act as follows:
 
@@ -761,7 +852,7 @@ We have distilled five operations from Neo4j and RedisGraph implementations that
       \end{center}
 
       \item \textbf{\texttt{Into}}.
-      This mode is very similar to the previous one but in this case the records in the input table must already contain the destination modes. The operation then traverses all the edges between the source and destination nodes and adds the traversed edges to the output table.
+      This mode is very similar to the previous one but in this case the records in the input table must already contain the destination nodes in the column named $n_{\mathrm{to}}$. The operation then traverses all the edges between the source and destination nodes and adds the traversed edges to the output table.
 
       Recall the example graph on Figure~\ref{fig:property-graph} again.
       An example application of the \texttt{Expand} operation in the mode \texttt{Into} can act as follows (the types of columns are omitted for brevity):
@@ -787,9 +878,14 @@ We have distilled five operations from Neo4j and RedisGraph implementations that
         \end{tabular}
       \end{center}
     \end{itemize}
-    The mode is also specified by the user.
 
-    \item \textbf{\texttt{Traverse}}. This operation is the workhorse of RedisGraph's query evaluation. From the high-level perspective you can think of it as a generalization of the \texttt{Expand} operation. Instead of specifying a single edge to traverse the user provides a slice of a path pattern. The precise meaning of this term will be given later. The operation takes a table as input and for each record in the input table it traverses from the source node all the paths that satisfy the pattern slice.
+    If we know the exact mode we can write it as:
+    \begin{itemize}
+      \item $[\texttt{ExpandAll}(n_{\mathrm{from}}, n_{\mathrm{edge}}, n_{\mathrm{to}}, d)]_G$
+      \item $[\texttt{ExpandInto}(n_{\mathrm{from}}, n_{\mathrm{edge}}, n_{\mathrm{to}}, d)]_G$
+    \end{itemize}
+
+    \item $\texttt{Traverse}(n_{\mathrm{from}}, \pi)$. This operation is the workhorse of RedisGraph's query evaluation. From the high-level perspective you can think of it as a generalization of the \texttt{Expand} operation. Instead of specifying a single edge to traverse the user provides a slice $\pi$ of a path pattern. The precise meaning of this term will be given later. The operation takes a table as input and for each record in the input table it traverses from the source node under name $n_{\mathrm{from}}$ all the paths that satisfy the pattern slice.
     
     Why would we even have such operation when we can express it with other operations? The reason is that this operation is heavily optimized using linear algebra. Other operations are quite atomic so you can't really optimize them that much.
 
@@ -803,29 +899,9 @@ We have distilled five operations from Neo4j and RedisGraph implementations that
 We specified the execution plan operations in a similar way to the specification of the query language.
 
 \begin{definition}
-  To specify the operations we introduce \textbf{the operation evaluation function} defined for each operation as follows:
-  \begin{itemize}
-    \item $ [\texttt{ScanVertices}(n)]_G = t'$ where $t'$ is the result of the $\texttt{ScanVertices}$ operation on the graph $G$ with the name of the output column $n$.
-    \item $ [\texttt{FilterByLabel}(m, n, l)]_G (t) = t' $ where $t'$ is the result of the \\ $\texttt{FilterByLabel}$ operation in the mode $m$ on the graph $G$ and the table $t$ with the name of the filtered column $n$ and the label $l$. 
-    
-    If we know the exact mode we can write it as:
-    \begin{itemize}
-      \item $[\texttt{FilterVerticesByLabel}(n, l)]_G$
-      \item $[\texttt{FilterEdgesByLabel}(n, l)]_G$
-    \end{itemize}
-
-    \item $ [\texttt{Expand}(m, d, n_{\mathrm{from}}, n_{\mathrm{edge}}, n_{\mathrm{to}})]_G (t) = t' $ where $t'$ is the result of the $\texttt{Expand}$ operation in the mode $m$ on the graph $G$ and the table $t$ with the direction of edges, the names of the columns containing the source nodes, the traversed edges and the destination nodes respectively.
-    
-    If we know the exact mode we can write it as:
-    \begin{itemize}
-      \item $[\texttt{ExpandAll}(n_{\mathrm{from}}, n_{\mathrm{edge}}, n_{\mathrm{to}}, d)]_G$
-      \item $[\texttt{ExpandInto}(n_{\mathrm{from}}, n_{\mathrm{edge}}, n_{\mathrm{to}}, d)]_G$
-    \end{itemize}
-
-    \item In the same fashion we define $[\texttt{Traverse}(n_{\mathrm{from}}, \pi)]_G(t) = t'$ where $\pi$ is the path pattern slice.
-    
-    \item Finally, $[\texttt{ReturnAll}]_G(t) = t'$ where the tables are defined the same way as in the previous cases.
-  \end{itemize}
+  To specify the behavior of operations on a graph $G$ we introduce \textbf{the operation evaluation function} $[o]_G$ where $o$ is some operation. 
+  
+  For example, $ [\texttt{FilterByLabel}(m, n, l)]_G (t) = t' $ where $t'$ is the result of the $\texttt{FilterByLabel}$ operation in the mode $m$ on the graph $G$ and the table $t$ with the name of the filtered column $n$ and the label $l$.
 \end{definition}
 
 Note that the operations may fail if the inputs are not well-formed. Formally, it means that the resulting table $t'$ may not be defined.
@@ -843,12 +919,12 @@ We have a set of axioms for each operations which can be split into the followin
 Let's take as an example the \texttt{ScanVertices} operation. It has the following specification:
 \begin{itemize}
   \item \textbf{Well-formedness axiom}. This operation doesn't have any well-formedness requirements so it must always be defined. Formally:
-  $$ [\texttt{ReturnAll}(n)]_G \text{ is always defined} $$
+  $$ [\texttt{ScanVertices}(n)]_G \text{ is always defined} $$
   \item \textbf{Type axiom}. The output table must have a single column named $n$ which contains vertices. Formally:
-  $$ \text{if } \; [\texttt{ReturnAll}(n)]_G = t' \; \text{ then } \; t' : (n \mapsto \texttt{vertex}) $$
+  $$ \text{if } \; [\texttt{ScanVertices}(n)]_G = t' \; \text{ then } \; t' : (n \mapsto \texttt{vertex}) $$
   \item \textbf{Functional axiom}. The output table must contain all the vertices in the graph and only them. Formally:
   \begin{center}
-    if $[\texttt{ReturnAll}(n)]_G = t'$ then $t' = \{(n \mapsto v) \mid v \in V\}$
+    if $[\texttt{ScanVertices}(n)]_G = t'$ then $t' = \{(n \mapsto v) \mid v \in V\}$
   \end{center}
 \end{itemize}
 
@@ -979,6 +1055,12 @@ This theorem means that we can easily find out the type of the resulting table w
 
 In this section we describe the translation algorithms from queries to execution plans that Neo4j and RedisGraph use to evaluate the queries.
 
+We want to show that the translation is correct in the sense that the evaluation of the resulting execution plan, according to the specification of the execution plan, satisfies the specification of GQL.
+
+\todo{the picture that explains everything}
+
+% TODO: Show the scheme that explains what the correctness is.
+
 \subsubsection{Neo4j}
 
 The idea of this translation algorithm is to translate each edge pattern in a path pattern into the \texttt{Expand} operation, possibly adding instances of \texttt{FilterByLabel} to account for the labels in the vertex and edge patterns.
@@ -1089,6 +1171,12 @@ Let $q$ be a query and $\pi$ its path pattern. Let's define the query evaluation
 
 \subsection{The implementation of the execution plan operations}
 
+Implementing almost all of the operations is pretty straightforward because they are simple enough. It is worth noting that we mostly aim to provide an implementation that just works. We are not trying to optimize the implementation for performance as it is out of the scope of this project.
+
+However, one RedisGraph-specific operation is much more complex. Even though, we could implement it in a similar way as any other: making it just work, we decided that we want to capture the way RedisGraph implements it: using matrices. 
+
+It has to translate a pattern slice into a complex matrix expression, evaluate the expression and iterate over the resulting matrix producing the resulting table. 
+
 \todo{...}
 
 \section{The mechanization in Coq}
@@ -1099,8 +1187,8 @@ In this section we describe the layout of Coq project and outline where the defi
 
 We use the following libraries:
 \begin{itemize}
-  \item \texttt{hahn} for a lot of convenient automation tactics;
-  \item \texttt{relational-algebra} for the boolean matrices.
+  \item \href{https://github.com/vafeiadis/hahn}{\texttt{hahn}} for a lot of convenient automation tactics;
+  \item \href{http://perso.ens-lyon.fr/damien.pous/ra/}{\texttt{relational-algebra}} for the boolean matrices.
 \end{itemize}
 
 \subsection{The files structure}
@@ -1124,18 +1212,24 @@ We have the following files in the project. Each file depends only on the files 
 
 \subsection{The used axioms}
 
-This project only supposes \textit{the functional extensionality} axiom. It is used to prove the equalities between records because records are defined as functions.
+This project only supposes \textit{the functional extensionality} axiom. It is used to prove the equalities between binding tables' records because records are defined as functions from names to values.
 
 We don't apply, for example, \textit{the law of excluded middle} or any other axiom from classical logic which means that our proofs are fully constructive.
 
 \todo{how we used modules and functors for specifications}
+\todo{the mapping from definitions to files}
 
 % У заключения нет номера главы
 \section*{Conclusion and future work}
 
-In summary, we aimed to write the specification of a subset of GQL and execution plans and show the correctness of the query translation for two reference databases, Neo4j and RedisGraph. We have completed all our subgoals.
+In summary, we aimed to write the specification of a subset of GQL and execution plans and show the correctness of the query translation for two reference databases, Neo4j and RedisGraph. We have completed all our subgoals:
 
-\todo{repeat the subgoals}
+\begin{itemize}
+  \item We have mechanized the specification of the core subset of the GQL standard via abstract syntax and denotational semantics.
+  \item We have mechanized the specification of the execution plan via denotational semantics.
+  \item We have implement and prove the correctness of the translation of the queries for both reference databases.
+  \item We have provided an example implementation of the execution plan evaluation including the implementation of the \texttt{Traverse} operation using matrices.
+\end{itemize}
 
 There are many directions in which this project can go. For example, we can continue by expanding the current subset of GQL or turn our code into an extensible framework to allow easier reasoning about graph query languages and their semantics.
 
