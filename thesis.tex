@@ -40,6 +40,8 @@
 \newtheorem{theorem}{Theorem}
 \newtheorem{lemma}{Lemma}
 \newtheorem{definition}{Definition}
+\newtheorem{example}{Example}
+\newtheorem*{example*}{Example}
 
 \newcommand{\pathstart}[1]{(#1)}
 \newcommand{\pathhop}[3]{#1 \texttt{-[} #2 \texttt{]-} (#3)}
@@ -53,6 +55,20 @@
   \end{tcolorbox}
 }
 
+% Для таблиц
+\usepackage{booktabs}
+
+% Для красивых дат
+\usepackage{fmtcount}
+\usepackage[calc]{datetime2}
+\DTMnewdatestyle{usvardate}{%
+\renewcommand{\DTMdisplaydate}[4]{%
+  \DTMmonthname{##2} \protect\ordinalnum{##3}, \number##1 }%
+ \renewcommand{\DTMDisplaydate}{\DTMdisplaydate}%
+}
+\DTMsetdatestyle{usvardate}
+\DTMsavedate{expdate}{2018-12-11}
+
 % \feetbelowfloat
 
 \begin{document}
@@ -63,7 +79,7 @@
   chair              = {Bachelor of Science \\ Computer Science},
   title              = {Mechanizing semantics of graph query languages in Coq},
   author             = {Semen Panenkov},
-  supervisorPosition = {Prof.},
+  supervisorPosition = {Dr. Prof.},
   supervisor         = {Anton Podkopaev},
   reviewerPosition   = {},
   reviewer           = {},
@@ -71,6 +87,80 @@
   chairHead          = {Stanislav Protasov},
 }
 \maketitle
+
+\begin{center}
+  \Large \textbf{Statutory Declaration}
+\end{center}
+
+\vspace*{3mm}
+
+\begin{center}
+\begin{tabular}{ p{0.4\textwidth} p{0.4\textwidth} }
+  \toprule
+  Family Name, First Name & Panenkov, Semen \\
+  \midrule
+  Matriculation number & 30006569 \\
+  \midrule
+  Kind of thesis submitted & Bachelor Thesis \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\vspace*{3mm}
+
+\begin{small}
+
+{\noindent \normalsize \textbf{English: Declaration of Authorship}}
+
+I hereby declare that the thesis submitted was created and written
+solely by myself without any external support. Any sources, direct
+or indirect, are marked as such. I am aware of the fact that the
+contents of the thesis in digital form may be revised with regard to
+usage of unauthorized aid as well as whether the whole or parts of
+it may be identified as plagiarism. I do agree my work to be entered
+into a database for it to be compared with existing sources, where
+it will remain in order to enable further comparisons with future
+theses. This does not grant any rights of reproduction and usage,
+however.
+
+This document was neither presented to any other examination board
+nor has it been published.
+
+\vspace*{3em}
+
+{\noindent \normalsize \textbf{German: Erklärung der Autorenschaft (Urheberschaft)}}
+
+Ich erkläre hiermit, dass die vorliegende Arbeit ohne fremde Hilfe
+ausschließlich von mir erstellt und geschrieben worden ist. Jedwede
+verwendeten Quellen, direkter oder indirekter Art, sind als solche
+kenntlich gemacht worden. Mir ist die Tatsache bewusst, dass der
+Inhalt der Thesis in digitaler Form geprüft werden kann im Hinblick
+darauf, ob es sich ganz oder in Teilen um ein Plagiat handelt. Ich
+bin damit einverstanden, dass meine Arbeit in einer Datenbank
+eingegeben werden kann, um mit bereits bestehenden Quellen
+verglichen zu werden und dort auch verbleibt, um mit zukünftigen
+Arbeiten verglichen werden zu können. Dies berechtigt jedoch nicht
+zur Verwendung oder Vervielfältigung.
+
+Diese Arbeit wurde noch keiner anderen Prüfungsbehörde vorgelegt
+noch wurde sie bisher veröffentlicht.
+
+\end{small}
+
+\vspace{2em}
+
+\noindent \dotfill \\
+Bremen, \today{} \hfill Semen Panenkov
+
+\begin{abstract}
+  Graph databases have a firm place in the world of data management and analytics, however, they lack a standardized and widely adopted query language. To address this, the community developed Graph Query Language (GQL) which is currently being standardized. Nevertheless, neither standardization of the language nor its implementation in a database is an easy task, as the experience with other standardized languages shows.
+
+  In this work, we provide a mechanized specification of the core subset of GQL, implement the key details of query evaluation and show that the implementation is correct according to the specification. Specifically, we show that the way our two reference databases, RedisGraph and Neo4j, translate declarative queries to execution plans and execute the resulting plans is correct.
+
+\end{abstract}
+
+\newpage
+
 \tableofcontents
 % У введения нет номера главы
 \section*{Introduction}
@@ -151,6 +241,7 @@ To achieve this goal, we have set the following objectives:
 \end{itemize}
 
 \section{Related work}
+\label{section:related-work}
 
 In this section we describe the basics of GQL and graph databases. For formal definitions we refer the reader to section~\ref{sec:technical-details}. We assume some familiarity with SQL and relational databases.
 
@@ -327,9 +418,7 @@ The concrete syntax of the core subset of GQL is given by the grammar in Figure~
   \item \textbf{Terminals} are written in red type-writer font.
 \end{itemize}
 
-We have chosen to only formalize the \texttt{MATCH}-clause in its simplest but still meaningful form. The semantics of this subset has been informally discussed in the introduction.
-
-In the next sections, we will define the abstract syntax of this subset, its semantics and underlying mathematical objects.
+We have chosen to only formalize the \texttt{MATCH}-clause in its simplest but still meaningful form. The semantics of this subset has been informally discussed in section~\ref{section:related-work}. In the next sections, we will formally define the abstract syntax of this subset, its semantics and underlying mathematical objects.
 
 \subsubsection{Values}
 \label{sec:GQL-values}
@@ -378,37 +467,41 @@ As has already been said, a property graph is a directed labelled multigraph whe
   \end{itemize}
 \end{definition}
 
-For instance, the example graph on Figure~\ref{fig:property-graph} is represented as follows:
+\begin{example}
+  The graph on Figure~\ref{fig:property-graph} is represented as follows:
 
-\begin{equation*}
-  \begin{aligned}[t]
-    V &= \{0, 1, 2 \} \\
-    E &= \{0, 1, 2 \} \\
-    \eta: & \\
-          & 0 \mapsto (0, 1) \\
-          & 1 \mapsto (0, 2) \\
-          & 2 \mapsto (1, 2) \\
-    \lambda_V: & \\
-          & 0 \mapsto \{\texttt{Person}\} \\
-          & 1 \mapsto \{\texttt{Company}\} \\
-          & 2 \mapsto \{\texttt{Tech}\} \\
-  \end{aligned}
-  \qquad
-  \begin{aligned}[t]
-    \lambda_E: & \\
-          & 0 \mapsto \texttt{WORKS\_FOR} \\
-          & 1 \mapsto \texttt{LIKES} \\
-          & 2 \mapsto \texttt{USES} \\
-    \phi_V: & \\
-          & 0 \mapsto \varnothing \\
-          & 1 \mapsto \{(\texttt{``name''}, \, \texttt{``JB''})\} \\
-          & 2 \mapsto \{(\texttt{``name''}, \, \texttt{``Coq''})\} \\
-    \phi_E: & \\
-          & 0 \mapsto \{(\texttt{``since''}, \, \texttt{2022})\} \\
-          & 1 \mapsto  \varnothing \\
-          & 2 \mapsto \varnothing
-  \end{aligned}
-\end{equation*}
+  \begin{equation*}
+    \begin{aligned}[t]
+      V &= \{0, 1, 2 \} \\
+      E &= \{0, 1, 2 \} \\
+      \eta: & \\
+            & 0 \mapsto (0, 1) \\
+            & 1 \mapsto (0, 2) \\
+            & 2 \mapsto (1, 2) \\
+      \lambda_V: & \\
+            & 0 \mapsto \{\texttt{Person}\} \\
+            & 1 \mapsto \{\texttt{Company}\} \\
+            & 2 \mapsto \{\texttt{Tech}\} \\
+    \end{aligned}
+    \qquad
+    \begin{aligned}[t]
+      \lambda_E: & \\
+            & 0 \mapsto \texttt{WORKS\_FOR} \\
+            & 1 \mapsto \texttt{LIKES} \\
+            & 2 \mapsto \texttt{USES} \\
+      \phi_V: & \\
+            & 0 \mapsto \varnothing \\
+            & 1 \mapsto \{(\texttt{``name''}, \, \texttt{``JB''})\} \\
+            & 2 \mapsto \{(\texttt{``name''}, \, \texttt{``Coq''})\} \\
+      \phi_E: & \\
+            & 0 \mapsto \{(\texttt{``since''}, \, \texttt{2022})\} \\
+            & 1 \mapsto  \varnothing \\
+            & 2 \mapsto \varnothing
+    \end{aligned}
+  \end{equation*}
+
+  \label{ex:graph-formally}
+\end{example}
 
 \subsubsection{Binding tables}
 
@@ -434,13 +527,20 @@ The notation $(n \mapsto v)$ means that the name $n$ is mapped to the value $v$.
   $$
 \end{definition}
 
-With these notations we can easily write down any record with a finite domain: $(n_1 \mapsto v_1; n_2 \mapsto v_2; n_3 \mapsto v_3)$.
+\begin{example}
+  With these notations we can easily write down any record with a finite domain:
+  $$(n_1 \mapsto v_1; n_2 \mapsto v_2; n_3 \mapsto v_3)$$
+\end{example}
 
 \begin{definition}
   \textbf{The type of a record} $r$ is denoted by $T(r)$. $T(r)(n)$ is defined iff $r(n)$ is defined and $T(r)(n) = T(r(n))$.
 \end{definition}
 
-That is, the type of a record is a function that maps names to types of values stored under these names in the record. Moreover, we use the same update syntax for the types of records. For example, $T(n_1 \mapsto 1; n_2 \mapsto 2.0) = (n_1 \mapsto \mathtt{int}; n_2 \mapsto \mathtt{float})$.
+That is, the type of a record is a function that maps names to types of values stored under these names in the record. 
+
+\begin{example} Moreover, we use the same update syntax for the types of records:
+  $$T(n_1 \mapsto 1; n_2 \mapsto 2.0) = (n_1 \mapsto \mathtt{int}; n_2 \mapsto \mathtt{float})$$
+\end{example}
 
 \begin{definition}
   In the similar to values manner, we can define \textbf{the typing relation for records}:
@@ -463,12 +563,15 @@ This definition implies that the binding tables in which records have different 
 \subsubsection{Patterns and paths}
 \label{sec:GQL-patterns-and-paths}
 
-Recall the example query from section~\ref{section:intro-GQL}. As we discussed in that section, the following part of the query is a path pattern:
-\begin{verbatim}
-  (p:Person)-[e:WORKS_FOR]->(c:Company {"name": "JB"})
-\end{verbatim}
+\begin{example}
+  Recall the example query from section~\ref{section:intro-GQL}. As we discussed in that section, the following part of the query is a path pattern:
 
-Here \verb+(p:Person)+ and \verb+(c:Company {"name": "JB"})+ are vertex patterns in their concrete syntax while \verb+-[e:WORKS_FOR]->+ is an edge pattern. We have discussed the exact syntax earlier.
+  \verb+(p:Person)-[e:WORKS_FOR]->(c:Company {"name": "JB"})+
+
+  Here \verb+(p:Person)+ and \verb+(c:Company {"name": "JB"})+ are vertex patterns in their concrete syntax while \verb+-[e:WORKS_FOR]->+ is an edge pattern. We have discussed the exact syntax earlier.
+
+  \label{ex:pattern-parts}
+\end{example}
 
 % \texttt{p}, \texttt{e}, \texttt{c} are vertex and edge pattern names. They are used to refer to the corresponding graph objects in the rest of the query. \texttt{Person} and \texttt{Company} are vertex labels. \texttt{WORKS\_FOR} is an edge label. \texttt{"name": "JB"} is \textbf{a properties pattern}. It says that the company must have a property ``name'' with a value of ``JB''.
 
@@ -509,6 +612,32 @@ Here \verb+(p:Person)+ and \verb+(c:Company {"name": "JB"})+ are vertex patterns
 
 This notation of path patterns closely follows the actual syntax of GQL, however, it might appear confusing at first. You might think that $\texttt{-[[} \pi_e \texttt{]]-}$ means that the edge pattern is undirected but the information of the actual direction is contained in $\pi_e$. We use double brackets to emphasize that the direction is specified by the edge pattern itself.
 
+\begin{example}
+  Continuing example~\ref{ex:pattern-parts} with the path pattern:
+
+  \verb+(p:Person)-[e:WORKS_FOR]->(c:Company {"name": "JB"})+
+
+  Formally, its abstract syntax is $\patternhop{\patternstart{\pi_{v_1}}}{\pi_e}{\pi_{v_2}}$ where
+  \begin{equation*}
+    \begin{aligned}[t]
+      \alpha(\pi_{v_1}) &= \texttt{``p''} \\
+      \lambda(\pi_{v_1}) &= \texttt{Person} \\
+      \phi(\pi_{v_1}) &= \{ \} \\
+      \\
+      \alpha(\pi_{v_2}) &= \texttt{``c''} \\
+      \lambda(\pi_{v_2}) &= \texttt{Company} \\
+      \phi(\pi_{v_2}) &= \{ (\texttt{``name''}, \texttt{``JB''}) \} \\
+    \end{aligned}
+    \qquad
+    \begin{aligned}[t]
+      \alpha(\pi_e) &= \texttt{``e''} \\
+      \lambda(\pi_e) &= \texttt{WORKS\_FOR} \\
+      \phi(\pi_e) &= \{ \} \\
+      \delta(\pi_e) &= \; \rightarrow \\
+    \end{aligned}
+  \end{equation*}
+\end{example}
+
 \begin{definition}
   \textbf{A path} is defined inductively as well:
   \begin{itemize}
@@ -519,8 +648,10 @@ This notation of path patterns closely follows the actual syntax of GQL, however
 
 The direction of $e$ is determined by the vertices adjacent to it. For example, if $e$ is an edge from $v_1$ to $v_2$, then in the path $\pathhop{\pathstart{v_1}}{e}{v_2}$ the the edge is directed from left to right while in the path $\pathhop{\pathstart{v_2}}{e}{v_1}$ the edge is directed from right to left.
 
-Note that the paths are not necessarily simple. We can visit the same vertex or edge multiple times. For example, the path following path is valid:
-$$\pathhop{\pathhop{\pathstart{v_1}}{e_1}{v_2}}{e_2}{v_1}$$
+\begin{example}
+  Note that the paths are not necessarily simple. We can visit the same vertex or edge multiple times. So the following path is valid:
+  $$\pathhop{\pathhop{\pathstart{v_1}}{e_1}{v_2}}{e_2}{v_1}$$
+\end{example}
 
 \subsubsection{Names}
 \label{sec:GQL-names}
@@ -535,7 +666,11 @@ Therefore, graph databases perform \textit{pattern normalization} before the act
 
 This way, even though, the names can be omitted in the original query, they are always present in the normalized query. So we can require that \textit{all} vertex and edge patterns have names in our specification, even though, some of them might be implicit.
 
-For example, if $\pi_v$ was \texttt{(a: Person)} in concrete syntax then $\alpha(\pi_v)$ is an explicit name ``a''. If $\pi_v$ was \texttt{(: Person)} then $\alpha(\pi_v)$ is an implicit name which might be ``anon\_0'', for instance.
+Throughout this text, implicit names are prefixed with ``anon\_'', for example, ``anon\_0''.
+
+\begin{example}
+  If $\pi_v$ was \texttt{(a: Person)} in concrete syntax then $\alpha(\pi_v)$ is an explicit name ``a''. If $\pi_v$ was \texttt{(: Person)} then $\alpha(\pi_v)$ is an implicit name which might be ``anon\_0'', for instance.
+\end{example}
 
 \subsubsection{The pattern-matching predicate and matching modes}
 
@@ -622,19 +757,20 @@ We can now formally define the pattern-matching predicate.
   \begin{itemize}
     \item If
       \begin{itemize}
-        \item $\pi_v$ is a vertex pattern and $v$ is a vertex in $G$
-        \item $\lambda (\pi_v)$ is undefined or $\lambda (\pi_v) \in \lambda_V(v)$
-        \item $\phi (\pi_v) \subset \phi_V (v)$
+        \item $\pi_v$ is a vertex pattern and $v$ is a vertex in $G$,
+        \item $\lambda (\pi_v)$ is undefined or $\lambda (\pi_v) \in \lambda_V(v)$,
+        \item $\phi (\pi_v) \subset \phi_V (v)$,
       \end{itemize}
       then $(G, \pathstart{v}, (\alpha (\pi_v) \mapsto_m v)) \models_m \patternstart{\pi_v}$.
     \item If
       \begin{itemize}
-        \item $\patternhop{\pi}{\pi_e}{\pi_v}$ is a pattern and $\pathhop{p}{e}{v}$ is a path in $G$
-        \item $(G, p, r) \models_m \pi$
-        \item $\lambda (\pi_v)$ is undefined or $\lambda (\pi_v) \in \lambda_V(v)$
-        \item $\lambda (\pi_e)$ is undefined or $\lambda (\pi_e) = \lambda_E(v)$
-        \item $\phi (\pi_v) \subset \phi_V (v)$
-        \item $\phi (\pi_e) \subset \phi_E (e)$
+        \item $\patternhop{\pi}{\pi_e}{\pi_v}$ is a pattern and $\pathhop{p}{e}{v}$ is a path in $G$,
+        \item $(G, p, r) \models_m \pi$,
+        \item $\lambda (\pi_v)$ is undefined or $\lambda (\pi_v) \in \lambda_V(v)$,
+        \item $\lambda (\pi_e)$ is undefined or $\lambda (\pi_e) = \lambda_E(v)$,
+        \item $\phi (\pi_v) \subset \phi_V (v)$,
+        \item $\phi (\pi_e) \subset \phi_E (e)$,
+        \item $r(\alpha(\pi_v)) = v$ or is undefined,
       \end{itemize}
       then $(G, \, \pathhop{p}{e}{v}, \,((\alpha (\pi_v), \alpha (\pi_e)) \mapsto_m (v, e); \, r)) \models_m \patternhop{\pi}{\pi_e}{\pi_v}$.
   \end{itemize}
@@ -642,6 +778,7 @@ We can now formally define the pattern-matching predicate.
 \end{definition}
 
 We could weaken the definition of the pattern-matching predicate by relaxing such strict control of implicit names but this definition turned out to be very convinient during the rigorous proofs because having a stronger predicate means having stronger induction hypotheses.
+
 
 \begin{definition}
   Using the matching mode $m$ we can define \textbf{the type of a pattern} $\pi$, denoted as $T_m(\pi)$, inductively by mirroring the structure of the pattern:
@@ -805,20 +942,28 @@ In this section we describe which operations we have chosen for our purposes and
 
 \subsubsection{The operations}
 
-We have distilled five operations from Neo4j and RedisGraph implementations that are enough to evaluate the queries. All of these operations produce a table but some of them also take a table as input. In other words, some operation produce tables to start with while other operations take and transform these tables. The execution plan is organized into a sequence of these transformations.
+We have distilled six operations from Neo4j and RedisGraph implementations that are enough to evaluate the queries. All of these operations produce a table but some of them also take a table as input. In other words, some operation produce tables to start with while other operations take and transform these tables. The execution plan is organized into a sequence of these transformations.
 
 \begin{definition}[the execution plan operations] $ $
   % \textbf{The execution plan operations} are the following:
   \begin{itemize}
     \item $\texttt{ScanVertices}(n)$. This is the operation from which the evaluation of any query begins. It retrieves all the vertices from the graph and returns a table with a single column named $n$ containing all the vertices.
 
-    \item $\texttt{FilterByLabel}(m, n, l)$. This is the operation which is used to implement matching the label patterns in path patterns.
-    It filters the input table by a label $l$. A record from the input table will make into the output table iff the graph object (a vertex or an edge) in column $n$ has the label $l$. $m$ here is the mode of the operation. It can be either \texttt{Vertices} or \texttt{Edges} to specify whether the operation should filter vertices or edges.
+    \item $\texttt{FilterByLabel}(m, n, l)$. This is the operation which is used to implement matching the label patterns in path patterns. It filters the input table by a label $l$. A record from the input table will make into the output table iff the graph object (a vertex or an edge) in column $n$ has the label $l$. $m$ here is the mode of the operation. It can be either \texttt{Vertices} or \texttt{Edges} to specify whether the operation should filter vertices or edges.
 
     If we know the exact mode we can use the following notations:
     \begin{itemize}
       \item $\texttt{FilterVerticesByLabel}(n, l)$
       \item $\texttt{FilterEdgesByLabel}(n, l)$
+    \end{itemize}
+
+    \item $\texttt{FilterByProperty}(m, n, k, v)$. This operation is similar to the previous one and is used to implement matching the properties patterns in path patterns.
+    A record from the input table will make into the output table iff the graph object (a vertex or an edge) in column $n$ has the property $k$ with a value of $v$. $m$ here is the mode of the operation. It can also be either \texttt{Vertices} or \texttt{Edges} to specify whether the type of objects that we filter.
+
+    If we know the exact mode we can use the following notations:
+    \begin{itemize}
+      \item $\texttt{FilterVerticesByProperty}(n, k, v)$
+      \item $\texttt{FilterEdgesByProperty}(n, k, v)$
     \end{itemize}
 
     \item $\texttt{Expand}(m, d, n_{\mathrm{from}}, n_{\mathrm{edge}}, n_{\mathrm{to}})$. This operation is the workhorse of \\ Neo4j's query evaluation. Briefly, it traverses one edge from each given node. More concretely, this operation performes in two modes specified by $m$:
@@ -894,15 +1039,17 @@ We have distilled five operations from Neo4j and RedisGraph implementations that
   \end{itemize}
 \end{definition}
 
-\subsubsection*{The specification}
+\subsubsection{The specification}
 
 We specified the execution plan operations in a similar way to the specification of the query language.
 
 \begin{definition}
   To specify the behavior of operations on a graph $G$ we introduce \textbf{the operation evaluation function} $[o]_G$ where $o$ is some operation. 
-  
-  For example, $ [\texttt{FilterByLabel}(m, n, l)]_G (t) = t' $ where $t'$ is the result of the $\texttt{FilterByLabel}$ operation in the mode $m$ on the graph $G$ and the table $t$ with the name of the filtered column $n$ and the label $l$.
 \end{definition}
+
+\begin{example}
+  $ [\texttt{FilterByLabel}(m, n, l)]_G (t) = t' $ where $t'$ is the result of the $\texttt{FilterByLabel}$ operation in the mode $m$ on the graph $G$ and the table $t$ with the name of the filtered column $n$ and the label $l$.
+\end{example}
 
 Note that the operations may fail if the inputs are not well-formed. Formally, it means that the resulting table $t'$ may not be defined.
 
@@ -1057,13 +1204,11 @@ In this section we describe the translation algorithms from queries to execution
 
 We want to show that the translation is correct in the sense that the evaluation of the resulting execution plan, according to the specification of the execution plan, satisfies the specification of GQL.
 
-\todo{the picture that explains everything}
-
 % TODO: Show the scheme that explains what the correctness is.
 
 \subsubsection{Neo4j}
 
-The idea of this translation algorithm is to translate each edge pattern in a path pattern into the \texttt{Expand} operation, possibly adding instances of \texttt{FilterByLabel} to account for the labels in the vertex and edge patterns.
+The idea of this translation algorithm is to translate each edge pattern in a path pattern into the \texttt{Expand} operation, possibly adding instances of \texttt{FilterByLabel} and \texttt{FilterByProperty} to account for the labels and properties in the vertex and edge patterns.
 
 \begin{figure}
   \include{img/neo4j-execution-plan.tex}
@@ -1071,11 +1216,13 @@ The idea of this translation algorithm is to translate each edge pattern in a pa
   \label{fig:neo4j-execution-plan}
 \end{figure}
 
-For example, we have the following path pattern:
-\begin{verbatim}
-  (u:User)-[:LIKES]->(v:Art)<-[:CREATED]-(w:Artist)
-\end{verbatim}
-Suppose that after normalization the first edge pattern got the name \texttt{anon\_0} and the second one got the name \texttt{anon\_1}. Then the translation algorithm produces the execution plan on Figure~\ref{fig:neo4j-execution-plan}.
+\begin{example}
+  Suppose we have the following path pattern:
+
+  \verb+(u:User)-[:LIKES]->(v:Art)<-[:CREATED]-(w:Artist)+
+
+  Suppose that after normalization the first edge pattern got the name \texttt{anon\_0} and the second one got the name \texttt{anon\_1}. Then the translation algorithm produces the execution plan on Figure~\ref{fig:neo4j-execution-plan}.
+\end{example}
 
 \begin{figure}
   \include{img/neo4j-execution-plan-cyclic.tex}
@@ -1083,20 +1230,21 @@ Suppose that after normalization the first edge pattern got the name \texttt{ano
   \label{fig:neo4j-execution-plan-cyclic}
 \end{figure}
 
-Is is also worth to consider the case of cyclic path patterns. For example, we have the following path pattern:
-% which specifies directed cycles with two edges:
-\begin{verbatim}
-  (u)-[e0]->(v)-[e1]->(u)
-\end{verbatim}
-To the point where we process the second edge pattern, both \texttt{u} and \texttt{v} are already in the context. That is why we use \texttt{ExpandInto} instead of \texttt{ExpandAll} and get the execution plan on Figure~\ref{fig:neo4j-execution-plan-cyclic}.
+\begin{example}
+  Is is also worth to consider the case of cyclic path patterns. Suppose we have the following path pattern:
+
+  \verb+(u)-[e0]->(v)-[e1]->(u)+
+
+  To the point where we process the second edge pattern, both \texttt{u} and \texttt{v} are already in the context. That is why we use \texttt{ExpandInto} instead of \texttt{ExpandAll} and get the execution plan on Figure~\ref{fig:neo4j-execution-plan-cyclic}.
+\end{example}
 
 \begin{definition}
   We can now precisely define \textbf{the auxilliary translation algorithm} from path patterns to execution plans. Let's denote the auxilliary plan for a path pattern $\pi$ by $P'(\pi)$. The algorithm is defined as follows:
   \begin{itemize}
-    \item If the path pattern is of the form $\patternstart{\pi_v}$ where $\pi_v$ is a vertex pattern that has name $n$ and label $l$ then the execution plan for $(\pi_v)$ is \texttt{ScanVertices(n)} followed by \texttt{FilterVerticesByLabel(n, l)}. If $l$ is not specified then the execution plan is just \texttt{ScanVertices(n)}.
+    \item If the path pattern is of the form $\patternstart{\pi_v}$ where $\pi_v$ is a vertex pattern the execution plan for $(\pi_v)$ is \texttt{ScanVertices($\alpha(\pi_v)$)} followed by \texttt{FilterVerticesByLabel($\alpha(\pi_v)$, $\lambda(\pi_v$))} (if the label is specified) and \texttt{FilterVerticesByProperty($\alpha(\pi_v)$, $k$, $v$)} for each $(k, v) \in \phi(\pi_v)$.
 
-    \item If the path pattern is of the form $\patternhop{\pi}{\pi_e}{\pi_v}$ where $\pi$ is a path pattern where the name of the last vertex pattern is $n_u$; $\pi_e$ is an edge pattern that has name $n_e$, direction $d$ and label $l_e$, and $\pi_v$ is a vertex pattern that has name $n_v$ and label $l_v$; then the execution plan for $\patternhop{\pi}{\pi_e}{\pi_v}$ is \texttt{Expand}($m$, $n_u$, $n_e$, $n_v$) followed by \texttt{FilterEdgesByLabel}($n_e$, $l_e$) and \texttt{FilterVerticesByLabel}($n_v$, $l_v$). 
-    If any of the labels is not specified, the corresponding filtering operation is not included. The mode $m$ of the \texttt{Expand} operation is determined based on whether $n_v$ is already present or not. This can be checked by looking at $T_F(\pi)$, the full type of the pattern.
+    \item If the path pattern is of the form $\patternhop{\pi}{\pi_e}{\pi_v}$ where $\pi$ is a path pattern where the name of the last vertex pattern is $n_u$; $\pi_e$ is an edge pattern, and $\pi_v$ is a vertex pattern then the execution plan for $\patternhop{\pi}{\pi_e}{\pi_v}$ is \texttt{Expand}($m$, $n_u$, $\alpha(\pi_e)$, $\alpha(\pi_v)$) followed by \\ \texttt{FilterEdgesByLabel}($\alpha(\pi_e)$, $\lambda(\pi_e)$), \texttt{FilterVerticesByLabel}($\alpha(\pi_v)$, $\lambda(\pi_v)$) and \texttt{FilterByProperty} operations for each property in $\phi(\pi_e)$ and $\phi(\pi_v)$.
+    If any of the labels is not specified, the corresponding filtering operation is not included. The mode $m$ of the \texttt{Expand} operation is determined based on whether $\alpha(\pi_v)$ is already present or not. This can be checked by looking at $T_F(\pi)$, the full type of the pattern.
   \end{itemize} 
 \end{definition}
 
@@ -1167,7 +1315,261 @@ Let $q$ be a query and $\pi$ its path pattern. Let's define the query evaluation
 
 \subsubsection{RedisGraph}
 
-\todo{...}
+Unlike Neo4j, RedisGraph first splits the path pattern into a sequence of pattern slices and then translates each slice into a single \texttt{Traverse} operation and puts them inbetween the \texttt{ScanVertices} and \texttt{ReturnAll} operations.
+
+\begin{definition}
+  Pattern slices are almost the same as ordinary patterns except that they start not with a vertex pattern but with an empty slice. Formally, \textbf{a pattern slice} is either:
+  \begin{itemize}
+    \item an empty slice $\epsilon$
+    \item $\patternhop{\pi'}{\pi_e}{\pi_v}$ where $\pi'$ is another pattern slice, $\pi_e$ is an edge pattern and $\pi_v$ is a vertex pattern.
+  \end{itemize}
+\end{definition}
+
+\begin{definition}
+  To reconstruct the original path pattern after splits we introduce \textbf{the append operation} $\circ$ that appends a pattern slice to a path pattern. 
+  $\pi_0 \circ \pi' = \pi$ where $\pi_0$ is a path pattern, $\pi'$ is a pattern slice, and $\pi$ is a path pattern that is obtained by appending $\pi'$ to $\pi_0$.
+
+  It is defined recursively as follows:
+  \begin{itemize}
+    \item $\pi_0 \circ \epsilon = \pi_0$
+    \item $\pi_0 \circ (\patternhop{\pi'}{\pi_e}{\pi_v}) = \patternhop{(\pi \circ \pi')}{\pi_e}{\pi_v}$
+  \end{itemize}
+
+\end{definition}
+
+\begin{definition}
+  We call a hop explicit if a vertex or an edge pattern that it adds to the path pattern has an explicit name. Otherwise, we call it implicit.
+\end{definition}
+
+The question arises where to split the pattern. RedisGraph splits the pattern after each explicit hop. The reason for this will become clear in the next section.
+
+Another question is how to split the pattern. We want to define a single step of splitting into a slice and the remaining path path pattern and then apply it recursively until the whole pattern is split.
+
+\begin{definition}
+  Let's introduce a pair of operators $\nabla_1'$ and $\nabla_2'$ that perform a single step of splitting a pattern. They split a path pattern into a pattern slice and remaining path pattern. In particular, $\nabla_1' \pi = \pi_0$ and $\nabla_2' \pi = \pi'$ where $\pi_0$ is the remaining path pattern and $\pi'$ is the pattern slice that was split off.
+
+  Formally, they are defined as follows:
+  \begin{itemize}
+    \item $\nabla_1' \patternstart{\pi_v} = \patternstart{\pi_v}$
+    \item $\nabla_2' \patternstart{\pi_v} = \epsilon$
+    \item $\nabla_1' (\patternhop{\pi}{\pi_e}{\pi_v}) =
+    \begin{cases}
+      \patternhop{\pi}{\pi_e}{\pi_v} & \text{ if this hop is explicit} \\
+      \nabla_1' \pi & \text{ otherwise}
+    \end{cases} $
+    \item $\nabla_2' (\patternhop{\pi}{\pi_e}{\pi_v}) =
+    \begin{cases}
+      \varepsilon & \text{ if this hop is explicit} \\
+      \patternhop{(\nabla_2' \pi)}{\pi_e}{\pi_v} & \text{ otherwise}
+    \end{cases} $
+  \end{itemize}
+\end{definition}
+
+\begin{example}
+  Suppose we have the following path pattern:
+  $$ \pi := \patternhop{\patternhop{
+    \patternhop{\patternstart{\pi_{v_0}}}{\pi_{e_1}}{\pi_{v_1}}
+    }{\pi_{e_2}}{\pi_{v_2}}}{{\pi_{e_3}}}{\pi_{v_3}} $$
+  and all the vertex and edge pattern in it except $\pi_{e_1}$ have implicit names. Then the operators split it as follows:
+  \begin{align*}
+    \nabla_1' \pi &= \patternhop{\patternstart{\pi_{v_0}}}{\pi_{e_1}}{\pi_{v_1}} \\
+    \nabla_2' \pi &= \patternhop{\patternhop{}{\pi_{e_2}}{\pi_{v_2}}}{\pi_{e_3}}{\pi_{v_3}}
+  \end{align*}
+\end{example}
+
+With this definition we can easily establish the following properties.
+
+\begin{theorem} $ $
+
+  \begin{itemize}
+    \item $\nabla_1' \pi \circ \nabla_2' \pi = \pi$.
+    \item If $\pi$ is well-formed, $\nabla_1' \pi$ is well-formed. \\
+    The converse might not be true.
+    \item Either $\nabla_1' \pi$ has no hops or its last hop is explicit.
+    \item $\nabla_2' \pi$ has no explicit hops.
+  \end{itemize}
+\end{theorem}
+\begin{proof}
+  By the definitions.
+\end{proof}
+
+However, the last hop in the original pattern might also contain an explicit name. In this case the split off pattern slice would be empty. This way recursive pattern splitting would never terminate.
+
+\begin{definition}
+  To avoid this we introduce another pair of operators $\nabla_1$ and $\nabla_2$ that always split off a non-empty pattern slice if the path pattern has at least one hop. They are defined using previous operators as follows:
+  \begin{itemize}
+    \item $\nabla_1 \patternstart{\pi_v} = \patternstart{\pi_v}$
+    \item $\nabla_2 \patternstart{\pi_v} = \epsilon$
+    \item $\nabla_1 (\patternhop{\pi}{\pi_e}{\pi_v}) = \nabla_1' \pi$
+    \item $\nabla_2 (\patternhop{\pi}{\pi_e}{\pi_v}) = \patternhop{(\nabla_2' \pi)}{\pi_e}{\pi_v} $
+  \end{itemize}
+\end{definition}
+
+They now obey all the desired properties which we state as in the following theorem.
+
+\begin{theorem} $ $
+  \begin{itemize}
+    \item $\nabla_1 \pi \circ \nabla_2 \pi = \pi$
+    \item If $\pi$ is well-formed, $\nabla_1 \pi$ is well-formed.
+    \item Either $\nabla_1 \pi$ has no hops or its last hop is explicit.
+    \item All hops in $\nabla_2 \pi$ except the last one are implicit.
+  \end{itemize}
+\end{theorem}
+\begin{proof}
+  By the definitions.
+\end{proof}
+
+\begin{definition}
+  In analogy to pattern slices we define \textbf{path slices}. Formally, a path slice is either:
+  \begin{itemize}
+    \item an empty path slice $\epsilon$,
+    \item a hop $\pathhop{p}{e}{v}$ where $p$ is a path slice, $e$ is an edge identifier and $v$ is a vertex identifier.
+  \end{itemize}
+
+  Analogously, we define \textbf{the append operation} $\circ$ on path slices.
+\end{definition}
+
+In analogy to path patterns we need to define what it means for a pattern slice to be well-formed, what its type is, and what it means to match a pattern slice.
+
+RedisGraph evaluates a query by traversing all pattern slices and repeatedly continuing the found paths with the path slices that match the current pattern slice. Therefore, well-formedness, types and pattern-matching are defined in terms of the current pattern and current paths. Also note that all of these notions are defined in terms of \textit{mixed} matching mode.
+
+\begin{definition}
+  Let $\pi'$ be a pattern slice. $T(\pi', T)$ is the type of a pattern slice with respect to a type $T$. Formally, it is defined as follows:
+  \begin{itemize}
+    \item $T(\epsilon, T) = T$
+    \item $T(\patternhop{\pi'}{\pi_e}{\pi_v}, T) = ((\alpha(\pi_v), \alpha(\pi_e)) \mapsto_M (\texttt{vertex}, \texttt{edge}); T(\pi', T))$
+  \end{itemize}
+\end{definition}
+
+\begin{theorem}
+  We can immediately establish the following properties:
+  \begin{itemize}
+    \item $T_M(\pi) = T(\nabla_2' \pi, T_M(\nabla_1' \pi))$
+    \item $T_M(\pi) = T(\nabla_2 \pi, T_M(\nabla_1 \pi))$
+  \end{itemize}
+\end{theorem}
+
+\begin{definition}
+  A pattern slice $\pi'$ is \textbf{almost well-formed} with respect to type $T$ if:
+  \begin{itemize}
+    \item for any vertex pattern $\pi_v$ in $\pi'$ there is no edge pattern with the same name and $T(\alpha(\pi_v)) = \texttt{vertex}$ or $T(\alpha(\pi_v))$ is undefined;
+    \item for any edge pattern $\pi_e$ in $\pi'$ there is no vertex or edge pattern with the same and $T(\alpha(\pi_e))$ is undefined;
+    \item all hops in $\pi'$ are implicit.
+  \end{itemize}
+\end{definition}
+
+\begin{theorem}
+  This definition immediately implies that:
+  \begin{itemize}
+    \item if $\pi$ is well-formed then $\nabla_2' \pi$ is almost well-formed with respect to $T_M(\nabla_1' \pi)$;
+    \item if $\pi_0$ is well-formed, $\pi'$ is almost well-formed with respect to $T_M(\pi_0)$ then $\pi_0 \circ \pi'$ is well-formed.
+  \end{itemize}
+\end{theorem}
+
+\begin{definition}
+  A pattern slice is \textbf{well-formed} with respect to type $T$ if it is almost well-formed with respect to $T$ but the last hop may be explicit.
+\end{definition}
+
+\begin{theorem}
+  With this definition we immediately deduce that:
+  \begin{itemize}
+    \item if $\pi$ is well-formed then $\nabla_2 \pi$ is well-formed with respect to $T_M(\nabla_1 \pi)$;
+    \item if $\pi_0$ is well-formed, $\pi'$ is well-formed with respect to $T_M(\pi_0)$ then $\pi_0 \circ \pi'$ is well-formed.
+  \end{itemize}
+\end{theorem}
+
+\begin{definition}
+  Let $p'$ be a path slice, $r$ is a record, $n_{\mathrm{from}}$ is a name, and $r(n_{\mathrm{from}})$ is a vertex. The last vertex of $p'$ with respect to $r$ and $n_{\mathrm{from}}$ is defined as follows:
+  \begin{itemize}
+    \item if $p' = \epsilon$ then it is $r(n_{\mathrm{from}})$;
+    \item if $p' = \pathhop{p''}{e}{v}$ then it is $v$.
+  \end{itemize}
+\end{definition}
+
+\begin{definition}
+  \textbf{The pattern-matching predicate for pattern slices} is also defined in terms of the current record. Therefore, we need to know from which vertex we continue the path. We specify this with the name of the corresponding attribute.
+
+  Let $p'$ be a path slice, $\pi'$ a pattern slice, $n_{s}$ be a name and $r, r'$ be records. Then $(G, r, n_{s}, p', r') \models \pi'$ is defined as follows:
+  \begin{itemize}
+    \item $(G, r, n_{s}, \epsilon, r) \models \epsilon$ if $r(n_{\mathrm{from}})$ is a vertex identifier;
+    \item $(G, r, n_{s}, \pathhop{p'}{e}{v}, r'') \models \patternhop{\pi'}{\pi_e}{\pi_v}$ if:
+    \begin{itemize}
+      \item $r'' = ((\alpha(\pi_v), \alpha(\pi_e)) \mapsto_M (v, e); r')$;
+      \item $(G, r, n_{s}, p', r') \models \pi'$;
+      \item all the restrictions imposed by $\pi_e$ and $\pi_v$ are satisfied by $e$ and $v$ respectively where the last vertex of $p'$ is defined as in the previous definition.
+    \end{itemize} 
+  \end{itemize}
+\end{definition}
+
+This definition might sound overly complicated but its purpose becomes clear in the next theorem.
+
+\begin{theorem}
+  Let $\pi_0$ be a well-formed path pattern and $\pi'$ be a pattern slice that is well-formed with respect to $T_M(\pi_0)$. Suppose that:
+  \begin{itemize}
+    \item $(G, p, r) \models_M \pi_0$;
+    \item $n_{\mathrm{from}}$ is the name of the last vertex pattern in $\pi_0$;
+    \item $(G, r, n_{\mathrm{from}}, p', r') \models \pi'$.
+  \end{itemize}
+  Then $(G, p \circ p', r') \models_M \pi_0 \circ \pi'$.
+\end{theorem}
+
+A corollary of this theorem is that this theorem is also true for the parts of a path pattern after split.
+
+\begin{theorem}
+  Let $\pi$ be a well-formed path pattern and:
+  \begin{itemize}
+    \item $(G, p, r) \models_M \nabla_1 \pi$;
+    \item $n_{\mathrm{from}}$ is the name of the last vertex pattern in $\nabla_1 \pi$;
+    \item $(G, r, n_{\mathrm{from}}, p', r') \models \nabla_2 \pi$.
+  \end{itemize}
+  Then $(G, p \circ p', r') \models_M \pi$.
+\end{theorem}
+
+The converse of this theorem is also true.
+
+\begin{theorem}
+  Let $\pi$ be a well-formed path pattern and $(G, p, r') \models \pi$ then there exist $r, n_{\mathrm{from}}, p_0, p'$ such that:
+  \begin{itemize}
+    \item $p = p_0 \circ p'$;
+    \item $(G, p_0, r) \models_M \nabla_1 \pi$;
+    \item $n_{\mathrm{from}}$ is the name of the last vertex pattern in $\nabla_1 \pi$;
+    \item $(G, r, n_{\mathrm{from}}, p', r') \models_M \nabla_2 \pi$.
+  \end{itemize}
+\end{theorem}
+
+Having everything defined, we can now formally specify the \\ \texttt{Traverse($n_{\mathrm{from}}$, $\pi'$)} operation. Let $t$ be the input table.
+\begin{itemize}
+  \item \textbf{Well-formedness axiom}. If $T(t)(n_{\mathrm{from}}) = \texttt{vertex}$ and $\pi'$ is well-formed with respect to $T(t)$, then $[\texttt{Traverse($n_{\mathrm{from}}$, $\pi'$)}]_G(t)$ is defined.
+  
+  \item \textbf{Type axiom}. If $\pi'$ is well-formed with respect to $T(t)$ and \\ $[\texttt{Traverse($n_{\mathrm{from}}$, $\pi'$)}]_G(t) = t'$, then $T(t') = T(\pi', T(t))$.
+
+  \item \textbf{Functional axiom}. If $\pi'$ is well-formed with respect to $T(t)$ and \\ $[\texttt{Traverse($n_{\mathrm{from}}$, $\pi'$)}]_G(t) = t'$, then:
+  $$ t' = \{ r' \mid r \in t, \; \exists p' : (G, r, n_{\mathrm{from}}, p', r') \models \pi' \} $$
+\end{itemize}
+
+\begin{definition}
+  We can now define the auxilliary translation algorithm $P'$ for RedisGraph-like pattern translation. It is defined as follows:
+  \begin{itemize}
+    \item $P'((\pi_v))$ is \texttt{ScanVertices($\alpha(\pi_v)$)} possibly followed by \texttt{FilterByLabel} and \texttt{FilterByProperty} operations;
+    \item Otherwise, $P'(\pi)$ is \texttt{Traverse($n_{\mathrm{from}}$, $\nabla_2 \pi$)} appended to $P'(\nabla_1 \pi)$ \\ where $n_{\mathrm{from}}$ is the name of the last vertex pattern in $\nabla_1 \pi$.
+  \end{itemize}
+\end{definition}
+
+\begin{theorem}
+  If $\pi$ is a well-formed path pattern, then:
+  $$ [P'(\pi)]_G = \{ r \mid \exists p : (G, p, r) \models_M \pi \} $$
+\end{theorem}
+
+\begin{definition}
+  In analogy to the translation algorithm for Neo4j, we define the translation algorithm for RedisGraph $P(\pi)$ as $P'(\pi)$ followed by the \texttt{ReturnAll} operation.
+\end{definition}
+
+\begin{theorem}
+  If $\pi$ is a well-formed path pattern, then:
+  $$ [P(\pi)]_G = \{ r \mid \exists p : (G, p, r) \models_E \pi \} $$
+\end{theorem}
+
+It is now easy to see that the translation algorithm for RedisGraph is correct, i. e. it satisfies the specification of the GQL semantics.
 
 \subsection{The implementation of the execution plan operations}
 
@@ -1177,7 +1579,7 @@ However, one RedisGraph-specific operation is much more complex. Even though, we
 
 It has to translate a pattern slice into a complex matrix expression, evaluate the expression and iterate over the resulting matrix producing the resulting table. 
 
-\todo{...}
+We have a separate matrix over boolean semiring for each vertex and edge pattern in the slice about which we prove that it is correct.
 
 \section{The mechanization in Coq}
 
@@ -1215,9 +1617,6 @@ We have the following files in the project. Each file depends only on the files 
 This project only supposes \textit{the functional extensionality} axiom. It is used to prove the equalities between binding tables' records because records are defined as functions from names to values.
 
 We don't apply, for example, \textit{the law of excluded middle} or any other axiom from classical logic which means that our proofs are fully constructive.
-
-\todo{how we used modules and functors for specifications}
-\todo{the mapping from definitions to files}
 
 % У заключения нет номера главы
 \section*{Conclusion and future work}

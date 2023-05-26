@@ -223,9 +223,6 @@
     \vskip 5em
     Scientific supervisor:\\
     \my@title@supervisorPosition@en\ \my@title@supervisor@en\sigspace
-
-    Reviewer:\\
-    \my@title@reviewerPosition@en\ \my@title@reviewer@en
     }
   \end{center}
 \end{titlepage}
